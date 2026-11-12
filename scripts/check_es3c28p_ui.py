@@ -28,7 +28,7 @@ def issues(baseline, extracted):
             errors.append(f"{key} differs from approved baseline")
     return errors
 
-def implementation_check(baseline, runtime_path):
+def implementation_check(baseline, runtime_path, required_states=None):
     errors = []
     if not UI_CC.is_file() or not UI_H.is_file():
         return ["LVGL UI implementation files not found"]
@@ -45,6 +45,9 @@ def implementation_check(baseline, runtime_path):
     runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
     if runtime.get("viewport") != baseline["viewport"]:
         errors.append("LVGL runtime viewport differs from 320x240 baseline")
+    for name in required_states or []:
+        if name not in runtime.get("states", {}):
+            errors.append(f"missing runtime state {name}")
     for state, spec in baseline["states"].items():
         actual = runtime.get("states", {}).get(state, {})
         if not actual:
@@ -86,7 +89,23 @@ def main():
         else:
             errors.extend(issues(baseline, json.loads(extracted_file.read_text(encoding="utf-8"))))
     if a.strict:
-        errors.extend(implementation_check(baseline, a.runtime_tree))
+        # The compact frozen baseline has seven geometry-heavy states, while
+        # the approved interactive prototype exposes thirteen states.
+        # Require observed runtime evidence for all thirteen.
+        with tempfile.TemporaryDirectory() as temp:
+            full = Path(temp) / "ui-full.json"
+            cmd = [sys.executable, str(ROOT / "scripts/extract_es3c28p_ui.py"),
+                   "--full", "--output", str(full)]
+            if a.chromium:
+                cmd += ["--chromium", a.chromium]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode:
+                errors.append("full prototype extraction failed: " +
+                              (result.stderr or result.stdout).strip()[-400:])
+                required = []
+            else:
+                required = list(json.loads(full.read_text(encoding="utf-8"))["snapshots"])
+        errors.extend(implementation_check(baseline, a.runtime_tree, required))
     if errors:
         for error in errors:
             print("FAIL:", error)
