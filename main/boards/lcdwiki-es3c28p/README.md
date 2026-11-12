@@ -137,6 +137,22 @@
 python scripts/build.py lcdwiki-es3c28p --name lcdwiki-es3c28p
 ```
 
+
+## 资源基线测试（诊断构建）
+
+默认的横屏固件不启用资源采样。只有资源诊断构建会每 3 秒在现有 LVGL 任务中输出一条 `ES3C28P_RES` 日志，不增加后台任务，不改变音频协议或屏幕行为。
+
+```bash
+# 需要先配置 ESP-IDF v6.0.1+ 环境
+python3 scripts/build.py lcdwiki-es3c28p --name lcdwiki-es3c28p-landscape-diag
+```
+
+日志字段：`state`（设备状态）、`internal_free/internal_min/internal_largest`（内部 8 位 RAM）、`psram_free/psram_min/psram_largest`（外部 8 位 PSRAM），单位均为字节。`*_min` 是启动以来的最低空闲量，非当前状态瞬时值；`*_largest` 为当前最大连续可分配块。
+
+真机测试顺序：冷启动稳定待机 1 分钟 → 触摸/屏幕切换 → 唤醒并连续对话 → 播放 Jellyfin 故事或儿歌并尝试打断 → 切换天气及黄历数据 → 再次待机。记录各阶段采样与音频异常；对比上一个阶段的最大连续块和历史最低空闲量。完整 UI 与多媒体并发上线之前，必须先取得这组真机数据。
+
+**限制**：这个构建仅用于测量；当前尚未获得实际设备的 RAM 峰值，不能凭静态配置推断可用余量。采样日志不会上传到云端；请保留本地串口记录并核对触摸方向、音频及 Wi-Fi 是否正常。测量后请刷回普通的 `lcdwiki-es3c28p-landscape` 固件。
+
 ## 与 ES3C35P 的差异
 
 同厂商的 3.5 寸模块 (`lcdwiki-es3c35p`) 使用 ST77922 QSPI 触显一体屏, 引脚分配完全不同,
