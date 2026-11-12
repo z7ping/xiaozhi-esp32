@@ -75,6 +75,8 @@ def implementation_check(baseline, runtime_path, required_states=None):
     runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
     if runtime.get("capture_format") != 2:
         errors.append("LVGL capture format outdated or undelimited; no reliable geometry evidence")
+    for warning in runtime.get("layout_warnings", []):
+        errors.append(f"LVGL text clipping: {warning}")
     if runtime.get("viewport") != baseline["viewport"]:
         errors.append("LVGL runtime viewport differs from 320x240 baseline")
     errors.extend(collision_issues(runtime.get("states", {})))
