@@ -17,6 +17,7 @@ private:
     enum class Page { Home, Calendar, Player, Settings };
 
     void Navigate(Page page);
+    void QueueNavigate(Page page);
     void AttachRobot();
     void DetachRobot();
     void BuildHome();
@@ -38,6 +39,7 @@ private:
     static void OnSliderRelease(lv_event_t* event);
 
     Page page_ = Page::Home;
+    Page queued_page_ = Page::Home;
     lv_obj_t* root_ = nullptr;
     lv_obj_t* body_ = nullptr;
     lv_obj_t* robot_area_ = nullptr;
