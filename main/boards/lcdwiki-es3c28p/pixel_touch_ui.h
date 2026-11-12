@@ -56,6 +56,7 @@ private:
     static void OnMediaToggle(lv_event_t* event);
     static void OnMediaNext(lv_event_t* event);
     static void OnMediaStop(lv_event_t* event);
+    static void OnMediaSeek(lv_event_t* event);
     static void OnPlaylistOpen(lv_event_t* event);
     static void OnPlaylistClose(lv_event_t* event);
     static void OnPlaylistPrevious(lv_event_t* event);
@@ -76,6 +77,7 @@ private:
     std::string media_title_;
     std::string media_error_;
     int64_t media_position_ms_ = 0;
+    int64_t media_duration_ms_ = 0;
     int media_current_index_ = -1;
     int media_playlist_length_ = 0;
     int playlist_offset_ = 0;
@@ -113,6 +115,7 @@ private:
     lv_obj_t* player_title_ = nullptr;
     lv_obj_t* player_status_ = nullptr;
     lv_obj_t* player_position_ = nullptr;
+    lv_obj_t* player_seek_slider_ = nullptr;
     lv_obj_t* player_toggle_ = nullptr;
     lv_obj_t* playlist_panel_ = nullptr;
     lv_obj_t* playlist_buttons_[6] = {};
