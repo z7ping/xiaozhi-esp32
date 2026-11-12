@@ -304,12 +304,18 @@ void PixelTouchUI::LogUiGeometry() const {
     switch (page_) {
         case Page::Home: state = "home"; break;
         case Page::Voice:
-            state = voice_waiting_response_ ? "voice.thinking" : "voice.listening";
+            state = Application::GetInstance().GetDeviceState() == kDeviceStateSpeaking ?
+                    "voice.speaking" :
+                    (voice_waiting_response_ ? "voice.thinking" : "voice.listening");
             break;
         case Page::Player:
             state = player_song_mode_ ? "player.song.playing" :
-                    (media_status_ == "paused" ? "player.story.paused" :
-                                                  "player.story.playing");
+                    (player_volume_popup_ != nullptr &&
+                     !lv_obj_has_flag(player_volume_popup_, LV_OBJ_FLAG_HIDDEN) ?
+                     "player.story.volume" :
+                     (media_status_ == "paused" ? "player.story.paused" :
+                     (media_status_ == "playing" ? "player.story.playing" :
+                                                   "player.story.idle")));
             break;
         case Page::Calendar:
             state = calendar_details_popup_ != nullptr &&
@@ -1105,6 +1111,13 @@ void PixelTouchUI::Refresh() {
         }
         return;
     }
+    if (page_ == Page::Voice) {
+        RefreshVoice();
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+        LogUiGeometry();
+#endif
+        return;
+    }
     if (page_ == Page::Player) {
         UpdatePlayer();  // Recheck support on reconnect or server downgrade.
         // Only the new Go server explicitly negotiates this command.
@@ -1327,6 +1340,9 @@ void PixelTouchUI::OnChildModeChanged(lv_event_t* event) {
     settings.SetBool("child_mode", self->child_mode_);
     SetIfChanged(self->settings_foot_,
                  self->child_mode_ ? "儿童模式已开启" : "儿童模式已关闭");
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    self->LogUiGeometry();
+#endif
 }
 
 void PixelTouchUI::OnTwilightChanged(lv_event_t* event) {
