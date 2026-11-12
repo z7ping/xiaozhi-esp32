@@ -70,6 +70,8 @@ public:
     virtual void SetMediaState(const char* /*state*/, const char* /*title*/,
                                int64_t /*position_ms*/, int /*current_index*/,
                                int /*playlist_length*/, const char* /*error*/) {}
+    virtual void SetMediaPlaylist(int /*offset*/,
+                                  const std::vector<std::string>& /*titles*/) {}
     virtual bool InsertAnimDialog(const char* name, uint32_t duration_ms) {
         (void)name;
         (void)duration_ms;
