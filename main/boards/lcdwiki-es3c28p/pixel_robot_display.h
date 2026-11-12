@@ -20,6 +20,7 @@ public:
 #if CONFIG_WEATHER_DASHBOARD
     void ShowDashboard() override;
     void HideDashboard() override;
+    bool UseLegacyDashboard() const override { return false; }
 #endif
 
 private:
