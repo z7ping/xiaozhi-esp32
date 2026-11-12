@@ -51,14 +51,16 @@ def implementation_check(baseline, runtime_path):
             errors.append(f"missing runtime state {state}")
             continue
         observed = actual.get("anchors", {})
+        repeats = {}
         for key, bounds, _style in spec["anchors"]:
-            # Duplicate keys can be stored in runtime using numeric suffixes.
-            a = observed.get(key)
+            repeats[key] = repeats.get(key, 0) + 1
+            runtime_key = key if repeats[key] == 1 else f"{key}#{repeats[key]}"
+            a = observed.get(runtime_key)
             if a is None:
-                errors.append(f"{state}: missing {key}")
+                errors.append(f"{state}: missing {runtime_key}")
                 continue
             if len(a) != 4 or any(abs(float(a[i]) - bounds[i]) > 2 for i in range(4)):
-                errors.append(f"{state}: geometry differs for {key}: {a} != {bounds}")
+                errors.append(f"{state}: geometry differs for {runtime_key}: {a} != {bounds}")
     return errors
 
 def main():
