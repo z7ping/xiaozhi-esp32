@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 // Lightweight touch pages for the 320x240 LCDWiki landscape variant.
 // All calls take place under the existing display/LVGL lock.
@@ -17,6 +18,7 @@ public:
     void Refresh();
     void SetMediaState(const char* state, const char* title, int64_t position_ms,
                        int current_index, int playlist_length, const char* error);
+    void SetMediaPlaylist(int offset, const std::vector<std::string>& titles);
 
 private:
     enum class Page { Home, Calendar, Player, Settings };
@@ -29,6 +31,7 @@ private:
     void BuildCalendar();
     void BuildPlayer();
     void UpdatePlayer();
+    void UpdatePlaylist();
     void BuildSettings();
     void BuildHeader(const char* title, bool back = false);
     void BuildBackButton();
@@ -52,6 +55,11 @@ private:
     static void OnMediaToggle(lv_event_t* event);
     static void OnMediaNext(lv_event_t* event);
     static void OnMediaStop(lv_event_t* event);
+    static void OnPlaylistOpen(lv_event_t* event);
+    static void OnPlaylistClose(lv_event_t* event);
+    static void OnPlaylistPrevious(lv_event_t* event);
+    static void OnPlaylistNext(lv_event_t* event);
+    static void OnPlaylistSelect(lv_event_t* event);
     static void OnCalendarPrevious(lv_event_t* event);
     static void OnCalendarNext(lv_event_t* event);
     static void OnCalendarToday(lv_event_t* event);
@@ -69,6 +77,9 @@ private:
     int64_t media_position_ms_ = 0;
     int media_current_index_ = -1;
     int media_playlist_length_ = 0;
+    int playlist_offset_ = 0;
+    std::string playlist_titles_[6];
+    int playlist_count_ = 0;
     uint8_t refresh_ticks_ = 0;
     int calendar_year_ = 0;
     int calendar_month_ = 0;
@@ -102,5 +113,8 @@ private:
     lv_obj_t* player_status_ = nullptr;
     lv_obj_t* player_position_ = nullptr;
     lv_obj_t* player_toggle_ = nullptr;
+    lv_obj_t* playlist_panel_ = nullptr;
+    lv_obj_t* playlist_buttons_[6] = {};
+    lv_obj_t* playlist_page_label_ = nullptr;
     lv_timer_t* refresh_timer_ = nullptr;
 };
