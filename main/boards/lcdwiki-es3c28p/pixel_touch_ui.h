@@ -91,6 +91,7 @@ private:
     int selected_year_ = 0;
     int selected_month_ = 0;
     int selected_day_ = 0;
+    bool calendar_lookup_unavailable_ = false;
     bool child_mode_ = true;
     bool twilight_ = false;
     lv_obj_t* root_ = nullptr;
