@@ -212,6 +212,7 @@ void PixelTouchUI::Navigate(Page page) {
     calendar_month_label_ = nullptr;
     calendar_selected_label_ = nullptr;
     calendar_details_popup_ = nullptr;
+    for (auto& cell : calendar_cells_) cell = nullptr;
     child_mode_switch_ = nullptr;
     twilight_switch_ = nullptr;
     refresh_ticks_ = 0;
@@ -322,6 +323,7 @@ void PixelTouchUI::BuildCalendar() {
         const int col = offset % 7;
         const int row = offset / 7;
         auto* cell = lv_label_create(body_);
+        calendar_cells_[day] = cell;
         lv_obj_set_pos(cell, 9 + col * 43, 89 + row * 18);
         lv_obj_set_size(cell, 40, 18);
         lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
@@ -523,6 +525,23 @@ void PixelTouchUI::RefreshCalendar() {
 #endif
 }
 
+void PixelTouchUI::UpdateCalendarSelection() {
+    // Day selection updates two label styles instead of deleting and
+    // rebuilding 31 LVGL objects (avoids heap churn on repeated touches).
+    for (int day = 1; day <= 31; ++day) {
+        auto* cell = calendar_cells_[day];
+        if (cell == nullptr) continue;
+        const bool picked = selected_year_ == calendar_year_ &&
+                            selected_month_ == calendar_month_ &&
+                            selected_day_ == day;
+        lv_obj_set_style_bg_opa(cell, picked ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_text_color(cell, lv_color_hex(picked ? kBg : kText), 0);
+        if (picked) {
+            lv_obj_set_style_bg_color(cell, lv_color_hex(kAccent), 0);
+        }
+    }
+}
+
 void PixelTouchUI::ResetCalendarToday() {
     std::time_t now = std::time(nullptr);
     std::tm local{};
@@ -530,7 +549,7 @@ void PixelTouchUI::ResetCalendarToday() {
     if (local.tm_year < 125) return;
     calendar_year_ = selected_year_ = local.tm_year + 1900;
     calendar_month_ = selected_month_ = local.tm_mon + 1;
-    calendar_day_ = selected_day_ = local.tm_mday;
+    selected_day_ = local.tm_mday;
 }
 
 bool PixelTouchUI::IsSelectedToday() const {
@@ -645,7 +664,8 @@ void PixelTouchUI::OnCalendarDay(lv_event_t* event) {
     self->selected_year_ = self->calendar_year_;
     self->selected_month_ = self->calendar_month_;
     self->selected_day_ = day;
-    self->QueueNavigate(Page::Calendar);
+    self->UpdateCalendarSelection();
+    self->RefreshCalendar();
 }
 void PixelTouchUI::OnCalendarDetail(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
