@@ -34,6 +34,8 @@ JS = """(props) => {
     action:el.dataset.act||undefined,role:el.getAttribute('aria-label')||undefined,
     text:(el.children.length===0?el.textContent.trim():undefined)||undefined,
     icon:el.querySelector(':scope > use')?.getAttribute('href')||undefined,
+    input:el.tagName==='INPUT'?{type:el.type,min:el.min,max:el.max,value:el.value,
+      checked:el.checked,disabled:el.disabled}:undefined,
     bounds:[r(rect.x-box.x),r(rect.y-box.y),r(rect.width),r(rect.height)],style};
  }
  return {page:page.dataset.page,items:Array.from([page,...page.querySelectorAll('*')])
@@ -78,6 +80,10 @@ def main():
         symbols=page.locator("svg.symbols symbol").evaluate_all(
             "els => Object.fromEntries(els.map(e=>[e.id,e.outerHTML]))")
         css=page.locator("style").all_text_contents()
+        keyframe_rules=page.evaluate("""() => Array.from(document.styleSheets)
+          .flatMap(s=>Array.from(s.cssRules))
+          .filter(r=>r.type===CSSRule.KEYFRAMES_RULE)
+          .map(r=>({name:r.name,css:r.cssText}))""")
         browser.close()
     content=SOURCE.read_bytes()
     result={"schema":1,"source":"prototypes/esp32-ui/index.html",
@@ -88,6 +94,8 @@ def main():
                 obj["action"] for state in snapshots.values() for obj in state["items"]
                 if obj.get("action")}),
             "css_keyframes":sorted(set(re.findall(r'@keyframes\s+([\w-]+)',"\n".join(css))))}
+    if args.full:
+        result["keyframe_rules"] = keyframe_rules
     if not args.full:
         selected = {"home", "voice.listening", "player.story.playing",
                     "player.story.volume", "calendar.default", "calendar.detail",
