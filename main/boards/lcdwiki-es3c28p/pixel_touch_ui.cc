@@ -689,9 +689,13 @@ void PixelTouchUI::ApplyPalette() {
     auto recolor = [this](auto&& walk, lv_obj_t* object) -> void {
         if (object == robot_area_) return;
         const uint32_t current = lv_color_to_u32(lv_obj_get_style_bg_color(object, LV_PART_MAIN));
-        if (current == kBg || current == kTwilightBg) {
+        // LVGL may quantize colors to RGB565; compare through the same
+        // converter instead of comparing against unquantized 24-bit constants.
+        if (current == lv_color_to_u32(lv_color_hex(kBg)) ||
+            current == lv_color_to_u32(lv_color_hex(kTwilightBg))) {
             lv_obj_set_style_bg_color(object, lv_color_hex(twilight_ ? kTwilightBg : kBg), 0);
-        } else if (current == kPanel || current == kTwilightPanel) {
+        } else if (current == lv_color_to_u32(lv_color_hex(kPanel)) ||
+                   current == lv_color_to_u32(lv_color_hex(kTwilightPanel))) {
             lv_obj_set_style_bg_color(object, lv_color_hex(twilight_ ? kTwilightPanel : kPanel), 0);
             lv_obj_set_style_border_color(object,
                 lv_color_hex(twilight_ ? kTwilightBorder : kBorder), 0);
