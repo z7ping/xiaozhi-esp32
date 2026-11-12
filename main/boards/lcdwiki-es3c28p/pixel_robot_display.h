@@ -17,6 +17,8 @@ public:
     void RemoveChatMessage(const char* role, const char* content) override;
     void ClearChatMessages() override;
     bool SetEmotion(const char* emotion) override;
+    void SetMediaState(const char* state, const char* title, int64_t position_ms,
+                       int current_index, int playlist_length, const char* error) override;
 #if CONFIG_WEATHER_DASHBOARD
     void ShowDashboard() override;
     void HideDashboard() override;
