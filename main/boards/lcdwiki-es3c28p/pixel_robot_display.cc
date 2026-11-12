@@ -3,6 +3,13 @@
 #if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE && CONFIG_USE_WECHAT_MESSAGE_STYLE
 
 #include <cstring>
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+#include "application.h"
+
+#include <esp_heap_caps.h>
+#include <esp_log.h>
+#include <esp_timer.h>
+#endif
 
 namespace {
 constexpr uint32_t kBackground = 0x071326;
@@ -30,6 +37,13 @@ PixelRobotDisplay::~PixelRobotDisplay() {
         lv_timer_delete(blink_timer_);
         blink_timer_ = nullptr;
     }
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    if (resource_timer_ != nullptr) {
+        DisplayLockGuard lock(this);
+        lv_timer_delete(resource_timer_);
+        resource_timer_ = nullptr;
+    }
+#endif
 }
 
 void PixelRobotDisplay::SetupUI() {
@@ -90,6 +104,28 @@ void PixelRobotDisplay::SetupUI() {
             lv_timer_set_period(timer, self->blinking_ ? 130 : 3500);
         },
         3500, this);
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    // Diagnostic-only: sample in the existing LVGL task; no extra task or
+    // full-screen refresh. Heap minimums are historical low-water marks.
+    auto sample_resources = [](lv_timer_t*) {
+        const auto state = Application::GetInstance().GetDeviceState();
+        constexpr uint32_t internal = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+        constexpr uint32_t psram = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;
+        ESP_LOGI("ES3C28P_RES",
+                 "uptime_ms=%llu state=%s internal_free=%u internal_min=%u "
+                 "internal_largest=%u psram_free=%u psram_min=%u psram_largest=%u",
+                 static_cast<unsigned long long>(esp_timer_get_time() / 1000),
+                 DeviceStateMachine::GetStateName(state),
+                 static_cast<unsigned>(heap_caps_get_free_size(internal)),
+                 static_cast<unsigned>(heap_caps_get_minimum_free_size(internal)),
+                 static_cast<unsigned>(heap_caps_get_largest_free_block(internal)),
+                 static_cast<unsigned>(heap_caps_get_free_size(psram)),
+                 static_cast<unsigned>(heap_caps_get_minimum_free_size(psram)),
+                 static_cast<unsigned>(heap_caps_get_largest_free_block(psram)));
+    };
+    sample_resources(nullptr);
+    resource_timer_ = lv_timer_create(sample_resources, 3000, nullptr);
+#endif
 }
 
 void PixelRobotDisplay::SetEyes(bool closed) {
