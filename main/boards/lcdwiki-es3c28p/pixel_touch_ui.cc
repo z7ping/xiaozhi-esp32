@@ -232,6 +232,11 @@ void PixelTouchUI::Navigate(Page page) {
     brightness_value_ = nullptr;
     volume_value_ = nullptr;
     player_title_ = nullptr;
+    player_header_ = nullptr;
+    player_duration_ = nullptr;
+    player_volume_popup_ = nullptr;
+    player_volume_slider_ = nullptr;
+    player_volume_value_ = nullptr;
     player_status_ = nullptr;
     player_position_ = nullptr;
     player_seek_slider_ = nullptr;
@@ -355,9 +360,9 @@ void PixelTouchUI::BuildHome() {
     lv_obj_clear_flag(indicator, LV_OBJ_FLAG_CLICKABLE);
     Label(body_, "你好，我是天天", 31, 160, 145, 18, kMuted);
 
-    auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnPlayer, this,
+    auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this,
                          MATERIAL_SYMBOLS_HEADPHONES);
-    auto* song = Button(body_, "听儿歌", 114, 185, 93, 43, OnPlayer, this,
+    auto* song = Button(body_, "听儿歌", 114, 185, 93, 43, OnSong, this,
                         MATERIAL_SYMBOLS_MUSIC_NOTE);
     auto* calendar = Button(body_, "万年历", 214, 185, 93, 43, OnCalendar, this,
                             MATERIAL_SYMBOLS_CALENDAR_MONTH);
@@ -522,43 +527,107 @@ void PixelTouchUI::BuildCalendar() {
 }
 
 void PixelTouchUI::BuildPlayer() {
-    BuildHeader("媒体播放器");
-    player_title_ = Label(body_, "正在同步播放状态", 14, 45, 290, 30);
-    player_status_ = Label(body_, "连接服务端中", 14, 80, 290, 28, kAccent);
-    player_position_ = Label(body_, "00:00", 14, 107, 290, 24, kMuted);
+    BuildHeader(player_song_mode_ ? "儿歌播放" : "故事播放", true);
+    auto* volume_button = Button(body_, "", 280, 2, 28, 30,
+                                 OnVolumePopup, this, MATERIAL_SYMBOLS_VOLUME_UP);
+    lv_obj_set_style_border_width(volume_button, 0, 0);
+    lv_obj_set_style_bg_opa(volume_button, LV_OPA_TRANSP, 0);
+
+    // V1.1 player cover 77x77 at (21,48).
+    auto* cover = lv_obj_create(body_);
+    lv_obj_set_pos(cover, 21, 48);
+    lv_obj_set_size(cover, 77, 77);
+    StylePanel(cover, player_song_mode_ ? 0x765d9b : 0x355f65,
+               player_song_mode_ ? 0x765d9b : 0x355f65);
+    lv_obj_set_style_radius(cover, 14, 0);
+    lv_obj_add_flag(cover, LV_OBJ_FLAG_CLICKABLE);
+    // Retained legacy queue opens by long-press on the cover.
+    lv_obj_add_event_cb(cover, OnPlaylistOpen, LV_EVENT_LONG_PRESSED, this);
+    auto* cover_icon = lv_label_create(cover);
+    lv_label_set_text(cover_icon, player_song_mode_ ?
+                      MATERIAL_SYMBOLS_MUSIC_NOTE : MATERIAL_SYMBOLS_BOOK);
+    auto* theme = static_cast<LvglTheme*>(Board::GetInstance().GetDisplay()->GetTheme());
+    lv_obj_set_style_text_font(cover_icon, theme->icon_font()->font(), 0);
+    lv_obj_set_style_text_color(cover_icon, lv_color_hex(0xe2f2d6), 0);
+    lv_obj_center(cover_icon);
+
+    player_status_ = Label(body_, "等待播放", 127, 51, 168, 16, 0x83cfc3);
+    player_title_ = Label(body_, "暂无播放内容", 115, 73, 186, 29);
+    Label(body_, "Jellyfin", 115, 108, 164, 16, 0x89a1b8);
+
     player_seek_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(player_seek_slider_, 15, 134);
-    lv_obj_set_size(player_seek_slider_, 290, 9);
+    lv_obj_set_pos(player_seek_slider_, 22, 139);
+    lv_obj_set_size(player_seek_slider_, 276, 22);
     lv_slider_set_range(player_seek_slider_, 0, 1000);
-    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(kBorder), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(kAccent), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(kAccent), LV_PART_KNOB);
-    lv_obj_set_style_pad_all(player_seek_slider_, 6, LV_PART_KNOB);
+    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(0x2e5066), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(0x81dfd5), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
+    lv_obj_set_style_radius(player_seek_slider_, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(player_seek_slider_, 2, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(player_seek_slider_, 4, LV_PART_KNOB);
     lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
     lv_obj_add_event_cb(player_seek_slider_, OnMediaSeek, LV_EVENT_RELEASED, this);
 
-    player_prev_button_ = Button(body_, "上一首", 8, 148, 98, 38, OnMediaPrev, this,
-                                 MATERIAL_SYMBOLS_SKIP_PREVIOUS);
-    player_toggle_ = Button(body_, "播放", 111, 148, 98, 38, OnMediaToggle, this,
-                            MATERIAL_SYMBOLS_PLAY_ARROW);
-    player_next_button_ = Button(body_, "下一首", 214, 148, 98, 38, OnMediaNext, this,
-                                 MATERIAL_SYMBOLS_SKIP_NEXT);
-    BuildBackButton();
-    if (!child_mode_) {
-        player_stop_button_ = Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this,
-                                     MATERIAL_SYMBOLS_STOP);
-    }
-    player_list_button_ = Button(body_, "列表", 214, 194, 98, 38, OnPlaylistOpen, this,
-                                 MATERIAL_SYMBOLS_MUSIC_NOTE);
+    player_position_ = Label(body_, "--:--", 22, 164, 65, 15, 0x8fa7bd);
+    player_duration_ = Label(body_, "--:--", 235, 164, 63, 15, 0x8fa7bd);
+    lv_obj_set_style_text_align(player_duration_, LV_TEXT_ALIGN_RIGHT, 0);
 
+    player_prev_button_ = Button(body_, "", 65, 181, 41, 41,
+                                 OnMediaPrev, this, MATERIAL_SYMBOLS_SKIP_PREVIOUS);
+    player_toggle_ = Button(body_, "", 136, 177, 49, 49,
+                            OnMediaToggle, this, MATERIAL_SYMBOLS_PLAY_ARROW);
+    player_next_button_ = Button(body_, "", 214, 181, 41, 41,
+                                 OnMediaNext, this, MATERIAL_SYMBOLS_SKIP_NEXT);
+    for (auto* button : {player_prev_button_, player_toggle_, player_next_button_}) {
+        lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_border_width(button, 0, 0);
+        lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, 0);
+    }
+    lv_obj_set_style_bg_color(player_toggle_, lv_color_hex(0x81e4d8), 0);
+    lv_obj_set_style_bg_opa(player_toggle_, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(lv_obj_get_child(player_toggle_, 1),
+                                lv_color_hex(0x0a3041), 0);
+    if (!child_mode_) {
+        // The old stop capability remains available without adding
+        // an extra visible button that violates V1.1.
+        lv_obj_add_event_cb(player_toggle_, OnMediaStop, LV_EVENT_LONG_PRESSED, this);
+    }
+
+    player_volume_popup_ = lv_obj_create(body_);
+    lv_obj_set_pos(player_volume_popup_, 91, 37);
+    lv_obj_set_size(player_volume_popup_, 220, 47);
+    StylePanel(player_volume_popup_, 0x20364d, 0x35556b);
+    lv_obj_set_style_radius(player_volume_popup_, 10, 0);
+    Label(player_volume_popup_, "音量", 10, 13, 35, 18, kText);
+    player_volume_slider_ = lv_slider_create(player_volume_popup_);
+    lv_obj_set_pos(player_volume_slider_, 41, 13);
+    lv_obj_set_size(player_volume_slider_, 110, 22);
+    lv_slider_set_range(player_volume_slider_, 0, 100);
+    lv_obj_set_style_bg_color(player_volume_slider_, lv_color_hex(0x2e5066), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(player_volume_slider_, lv_color_hex(0x7be7d7), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(player_volume_slider_, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
+    lv_obj_add_event_cb(player_volume_slider_, OnSliderChange, LV_EVENT_VALUE_CHANGED, this);
+    lv_obj_add_event_cb(player_volume_slider_, OnSliderRelease, LV_EVENT_RELEASED, this);
+    int initial_volume = 50;
+    if (auto* codec = Board::GetInstance().GetAudioCodec()) {
+        initial_volume = codec->output_volume();
+    }
+    lv_slider_set_value(player_volume_slider_, initial_volume, LV_ANIM_OFF);
+    player_volume_value_ = Label(player_volume_popup_, "", 161, 13, 48, 19, kText);
+    char percent[8];
+    std::snprintf(percent, sizeof(percent), "%d%%", initial_volume);
+    SetIfChanged(player_volume_value_, percent);
+    lv_obj_add_flag(player_volume_popup_, LV_OBJ_FLAG_HIDDEN);
+
+    // Preserve real queue/selection control from the tested Go server.
     playlist_panel_ = lv_obj_create(body_);
     lv_obj_set_pos(playlist_panel_, 10, 35);
     lv_obj_set_size(playlist_panel_, 300, 201);
-    StylePanel(playlist_panel_, kPanel, kAccent);
+    StylePanel(playlist_panel_, 0x1b314b, 0x42647a);
+    lv_obj_set_style_radius(playlist_panel_, 12, 0);
     Label(playlist_panel_, "播放列表", 10, 5, 230, 22, kAccent);
     Button(playlist_panel_, "", 251, 1, 44, 29, OnPlaylistClose, this,
            MATERIAL_SYMBOLS_CLOSE);
-
     for (int i = 0; i < 6; ++i) {
         playlist_buttons_[i] = Button(playlist_panel_, "", 8, 29 + i * 23,
                                       284, 23, OnPlaylistSelect, this);
@@ -961,6 +1030,11 @@ void PixelTouchUI::UpdateSliderValues() {
         std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(lv_slider_get_value(volume_slider_)));
         SetIfChanged(volume_value_, text);
     }
+    if (player_volume_slider_ != nullptr) {
+        std::snprintf(text, sizeof(text), "%d%%",
+                      static_cast<int>(lv_slider_get_value(player_volume_slider_)));
+        SetIfChanged(player_volume_value_, text);
+    }
 }
 
 void PixelTouchUI::OnSettings(lv_event_t* event) {
@@ -974,6 +1048,27 @@ void PixelTouchUI::OnCalendar(lv_event_t* event) {
 }
 void PixelTouchUI::OnPlayer(lv_event_t* event) {
     static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Player);
+}
+void PixelTouchUI::OnStory(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->player_song_mode_ = false;
+    self->QueueNavigate(Page::Player);
+}
+void PixelTouchUI::OnSong(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->player_song_mode_ = true;
+    self->QueueNavigate(Page::Player);
+}
+void PixelTouchUI::OnVolumePopup(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->player_volume_popup_ == nullptr) return;
+    if (lv_obj_has_flag(self->player_volume_popup_, LV_OBJ_FLAG_HIDDEN)) {
+        lv_obj_clear_flag(self->player_volume_popup_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_to_index(self->player_volume_popup_,
+                             lv_obj_get_child_count(self->body_) - 1);
+    } else {
+        lv_obj_add_flag(self->player_volume_popup_, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 void PixelTouchUI::OnTalk(lv_event_t*) {
     Application::GetInstance().ToggleChatState();
@@ -1003,9 +1098,10 @@ void PixelTouchUI::OnSliderRelease(lv_event_t* event) {
         if (auto* backlight = Board::GetInstance().GetBacklight()) {
             backlight->SetBrightness(lv_slider_get_value(self->brightness_slider_), true);
         }
-    } else if (target == self->volume_slider_) {
+    } else if (target == self->volume_slider_ ||
+               target == self->player_volume_slider_) {
         if (auto* codec = Board::GetInstance().GetAudioCodec()) {
-            codec->SetOutputVolume(lv_slider_get_value(self->volume_slider_));
+            codec->SetOutputVolume(lv_slider_get_value(target));
         }
     }
 }
