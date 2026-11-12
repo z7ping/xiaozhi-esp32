@@ -55,6 +55,9 @@ private:
     static void OnHome(lv_event_t* event);
     static void OnCalendar(lv_event_t* event);
     static void OnPlayer(lv_event_t* event);
+    static void OnStory(lv_event_t* event);
+    static void OnSong(lv_event_t* event);
+    static void OnVolumePopup(lv_event_t* event);
     static void OnTalk(lv_event_t* event);
     static void OnVoiceStop(lv_event_t* event);
     static void OnVoicePrimary(lv_event_t* event);
@@ -82,6 +85,7 @@ private:
     Page page_ = Page::Home;
     Page queued_page_ = Page::Home;
     bool media_available_ = false;
+    bool player_song_mode_ = false;
     uint32_t media_generation_ = 0;
     std::string media_status_;
     std::string media_title_;
@@ -129,6 +133,11 @@ private:
     lv_obj_t* brightness_value_ = nullptr;
     lv_obj_t* volume_value_ = nullptr;
     lv_obj_t* player_title_ = nullptr;
+    lv_obj_t* player_header_ = nullptr;
+    lv_obj_t* player_duration_ = nullptr;
+    lv_obj_t* player_volume_popup_ = nullptr;
+    lv_obj_t* player_volume_slider_ = nullptr;
+    lv_obj_t* player_volume_value_ = nullptr;
     lv_obj_t* player_status_ = nullptr;
     lv_obj_t* player_position_ = nullptr;
     lv_obj_t* player_seek_slider_ = nullptr;
