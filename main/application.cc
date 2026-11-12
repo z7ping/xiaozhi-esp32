@@ -1479,10 +1479,10 @@ void Application::SendMcpMessage(const std::string& payload) {
     });
 }
 
-void Application::SendMediaCommand(const std::string& action) {
-    Schedule([this, action]() {
+void Application::SendMediaCommand(const std::string& action, int index) {
+    Schedule([this, action, index]() {
         if (protocol_) {
-            protocol_->SendMediaControl(action);
+            protocol_->SendMediaControl(action, index);
         }
     });
 }
