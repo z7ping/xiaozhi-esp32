@@ -34,6 +34,11 @@ private:
     void BuildBackButton();
     void RefreshHome();
     void RefreshCalendar();
+    void UpdateCalendarSelection();
+    void ResetCalendarToday();
+    void NavigateCalendarMonth(int delta);
+    bool IsSelectedToday() const;
+    void ApplyPalette();
     void UpdateSliderValues();
 
     static void OnSettings(lv_event_t* event);
@@ -47,6 +52,14 @@ private:
     static void OnMediaToggle(lv_event_t* event);
     static void OnMediaNext(lv_event_t* event);
     static void OnMediaStop(lv_event_t* event);
+    static void OnCalendarPrevious(lv_event_t* event);
+    static void OnCalendarNext(lv_event_t* event);
+    static void OnCalendarToday(lv_event_t* event);
+    static void OnCalendarDay(lv_event_t* event);
+    static void OnCalendarDetail(lv_event_t* event);
+    static void OnCalendarClose(lv_event_t* event);
+    static void OnChildModeChanged(lv_event_t* event);
+    static void OnTwilightChanged(lv_event_t* event);
 
     Page page_ = Page::Home;
     Page queued_page_ = Page::Home;
@@ -57,6 +70,14 @@ private:
     int media_current_index_ = -1;
     int media_playlist_length_ = 0;
     uint8_t refresh_ticks_ = 0;
+    int calendar_year_ = 0;
+    int calendar_month_ = 0;
+    int calendar_day_ = 0;
+    int selected_year_ = 0;
+    int selected_month_ = 0;
+    int selected_day_ = 0;
+    bool child_mode_ = true;
+    bool twilight_ = false;
     lv_obj_t* root_ = nullptr;
     lv_obj_t* body_ = nullptr;
     lv_obj_t* robot_area_ = nullptr;
@@ -68,6 +89,11 @@ private:
     lv_obj_t* lunar_label_ = nullptr;
     lv_obj_t* calendar_date_label_ = nullptr;
     lv_obj_t* calendar_detail_label_ = nullptr;
+    lv_obj_t* calendar_month_label_ = nullptr;
+    lv_obj_t* calendar_selected_label_ = nullptr;
+    lv_obj_t* calendar_details_popup_ = nullptr;
+    lv_obj_t* child_mode_switch_ = nullptr;
+    lv_obj_t* twilight_switch_ = nullptr;
     lv_obj_t* brightness_slider_ = nullptr;
     lv_obj_t* volume_slider_ = nullptr;
     lv_obj_t* brightness_value_ = nullptr;
