@@ -138,6 +138,42 @@ void DrawPrototypeBook(lv_obj_t* parent, bool large, int x, int y, uint32_t colo
     }
 }
 
+// Use the existing LVGL slider with a 22px touch footprint and 7px
+// painted track. The previous 22px *track* plus 5px knob padding created
+// a 32px white block that covered adjacent settings text on real hardware.
+lv_obj_t* CompactSlider(lv_obj_t* parent, int x, int y, int width) {
+    auto* field = lv_obj_create(parent);
+    lv_obj_remove_style_all(field);
+    lv_obj_set_pos(field, x, y);
+    lv_obj_set_size(field, width, 22);
+    lv_obj_clear_flag(field, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(field, LV_OBJ_FLAG_CLICKABLE);
+
+    auto* slider = lv_slider_create(field);
+    lv_obj_remove_style_all(slider);
+    lv_obj_set_pos(slider, 0, 7);
+    lv_obj_set_size(slider, width, 7);
+    lv_obj_set_ext_click_area(slider, 8);
+    lv_obj_add_flag(slider, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_set_style_bg_color(slider, lv_color_hex(0x2e5066), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(slider, lv_color_hex(0x83a7b9), LV_PART_MAIN);
+    lv_obj_set_style_border_width(slider, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(slider, 1, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(slider, lv_color_hex(0x7be7d7), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_border_width(slider, 0, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(slider, 1, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(slider, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
+    lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_KNOB);
+    lv_obj_set_style_border_color(slider, lv_color_hex(0xf0fffc), LV_PART_KNOB);
+    lv_obj_set_style_border_width(slider, 1, LV_PART_KNOB);
+    lv_obj_set_style_radius(slider, 2, LV_PART_KNOB);
+    lv_obj_set_style_shadow_width(slider, 0, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(slider, 5, LV_PART_KNOB);  // 7 + 2*5 = 17px
+    return slider;
+}
+
 void SetIfChanged(lv_obj_t* label, const char* value) {
     if (label != nullptr && strcmp(lv_label_get_text(label), value) != 0) {
         lv_label_set_text(label, value);
@@ -449,14 +485,14 @@ void PixelTouchUI::LogUiGeometry() const {
         log(".header", lv_obj_get_child(body_, 0));
         log("track-title", player_title_);
         log("play-status", player_status_);
-        log("progress", player_seek_slider_);
+        log("progress", player_seek_slider_ ? lv_obj_get_parent(player_seek_slider_) : nullptr);
         log("current-time", player_position_);
         log("total-time", player_duration_);
         log("@prev", player_prev_button_);
         log("pause-button", player_toggle_);
         log("@next", player_next_button_);
         log("volume-popup", player_volume_popup_);
-        log("volume-slider", player_volume_slider_);
+        log("volume-slider", player_volume_slider_ ? lv_obj_get_parent(player_volume_slider_) : nullptr);
     } else if (page_ == Page::Calendar) {
         log(".header", lv_obj_get_child(body_, 0));
         log("cal-month", calendar_month_label_);
@@ -469,8 +505,8 @@ void PixelTouchUI::LogUiGeometry() const {
     } else if (page_ == Page::Settings) {
         log(".header", lv_obj_get_child(body_, 0));
         log("kid-toggle", child_mode_switch_);
-        log("brightness", brightness_slider_);
-        log("setting-volume", volume_slider_);
+        log("brightness", brightness_slider_ ? lv_obj_get_parent(brightness_slider_) : nullptr);
+        log("setting-volume", volume_slider_ ? lv_obj_get_parent(volume_slider_) : nullptr);
         log("setting-foot", settings_foot_);
     }
 }
@@ -782,16 +818,8 @@ void PixelTouchUI::BuildPlayer() {
     player_title_ = Label(body_, "暂无播放内容", 115, 73, 186, 29);
     Label(body_, "Jellyfin", 115, 108, 164, 16, 0x89a1b8);
 
-    player_seek_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(player_seek_slider_, 22, 139);
-    lv_obj_set_size(player_seek_slider_, 276, 22);
+    player_seek_slider_ = CompactSlider(body_, 22, 139, 276);
     lv_slider_set_range(player_seek_slider_, 0, 1000);
-    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(0x2e5066), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(0x81dfd5), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
-    lv_obj_set_style_radius(player_seek_slider_, 1, LV_PART_MAIN);
-    lv_obj_set_style_radius(player_seek_slider_, 2, LV_PART_KNOB);
-    lv_obj_set_style_pad_all(player_seek_slider_, 4, LV_PART_KNOB);
     lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
     lv_obj_add_event_cb(player_seek_slider_, OnMediaSeek, LV_EVENT_RELEASED, this);
 
@@ -827,13 +855,8 @@ void PixelTouchUI::BuildPlayer() {
     StylePanel(player_volume_popup_, 0x20364d, 0x35556b);
     lv_obj_set_style_radius(player_volume_popup_, 10, 0);
     Label(player_volume_popup_, "音量", 10, 13, 35, 18, kText);
-    player_volume_slider_ = lv_slider_create(player_volume_popup_);
-    lv_obj_set_pos(player_volume_slider_, 41, 13);
-    lv_obj_set_size(player_volume_slider_, 110, 22);
+    player_volume_slider_ = CompactSlider(player_volume_popup_, 41, 13, 110);
     lv_slider_set_range(player_volume_slider_, 0, 100);
-    lv_obj_set_style_bg_color(player_volume_slider_, lv_color_hex(0x2e5066), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(player_volume_slider_, lv_color_hex(0x7be7d7), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(player_volume_slider_, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
     lv_obj_add_event_cb(player_volume_slider_, OnSliderChange, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_add_event_cb(player_volume_slider_, OnSliderRelease, LV_EVENT_RELEASED, this);
     int initial_volume = 50;
@@ -1049,31 +1072,17 @@ void PixelTouchUI::BuildSettings() {
 
     Label(body_, "屏幕亮度", 14, 96, 150, 20);
     Label(body_, "默认音量", 14, 140, 150, 20);
-    brightness_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(brightness_slider_, 184, 96);
-    lv_obj_set_size(brightness_slider_, 120, 22);
-    // LCD PWM cannot achieve the HTML demo's 110% CSS brightness.
+    brightness_slider_ = CompactSlider(body_, 184, 96, 120);
     lv_slider_set_range(brightness_slider_, 10, 100);
     if (auto* backlight = Board::GetInstance().GetBacklight()) {
         lv_slider_set_value(brightness_slider_, backlight->brightness(), LV_ANIM_OFF);
     }
-    volume_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(volume_slider_, 184, 140);
-    lv_obj_set_size(volume_slider_, 120, 22);
+    volume_slider_ = CompactSlider(body_, 184, 140, 120);
     lv_slider_set_range(volume_slider_, 0, 100);
     if (auto* codec = Board::GetInstance().GetAudioCodec()) {
         lv_slider_set_value(volume_slider_, codec->output_volume(), LV_ANIM_OFF);
     }
     for (auto* slider : {brightness_slider_, volume_slider_}) {
-        lv_obj_set_style_bg_color(slider, lv_color_hex(0x2e5066), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(slider, lv_color_hex(0x7be7d7), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_color(slider, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
-        lv_obj_set_style_border_color(slider, lv_color_hex(0x83a7b9), LV_PART_MAIN);
-        lv_obj_set_style_border_width(slider, 1, LV_PART_MAIN);
-        lv_obj_set_style_radius(slider, 1, LV_PART_MAIN);
-        lv_obj_set_style_radius(slider, 2, LV_PART_KNOB);
-        lv_obj_set_style_pad_all(slider, 5, LV_PART_KNOB);
         lv_obj_add_event_cb(slider, OnSliderChange, LV_EVENT_VALUE_CHANGED, this);
         lv_obj_add_event_cb(slider, OnSliderRelease, LV_EVENT_RELEASED, this);
     }
