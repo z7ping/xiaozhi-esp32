@@ -20,7 +20,10 @@ def parse(text):
     states = {}
     begun = set()
     count = 0
+    warnings = []
     for line in text.splitlines():
+        if "ES3C28P_UI:" in line and "label clipped:" in line:
+            warnings.append(line.split("label clipped:", 1)[1].strip())
         start = BEGIN.search(line)
         if start:
             state = start.group(1)
@@ -39,7 +42,7 @@ def parse(text):
         count += 1
     format_version = 2 if states and set(states).issubset(begun) else 1
     return {"viewport": VIEWPORT, "capture_format": format_version,
-            "states": states}, count
+            "states": states, "layout_warnings": list(dict.fromkeys(warnings))}, count
 
 def main():
     ap = argparse.ArgumentParser()
