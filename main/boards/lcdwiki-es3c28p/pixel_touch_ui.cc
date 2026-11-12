@@ -179,7 +179,10 @@ void PixelTouchUI::ShowVoice(lv_obj_t* robot_area, lv_obj_t* chat_container) {
     chat_container_ = chat_container;
     lv_obj_clear_flag(root_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_to_index(root_, lv_obj_get_child_count(lv_obj_get_parent(root_)) - 1);
-    if (page_ != Page::Voice) Navigate(Page::Voice);
+    if (page_ != Page::Voice) {
+        voice_waiting_response_ = false; // New conversation, no stale thinking.
+        Navigate(Page::Voice);
+    }
     RefreshVoice();
     lv_timer_resume(refresh_timer_);
 }
@@ -191,6 +194,7 @@ bool PixelTouchUI::IsPlayerVisible() const {
 
 void PixelTouchUI::Hide() {
     DetachRobot();
+    voice_waiting_response_ = false;
     lv_timer_pause(refresh_timer_);
     lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 }
@@ -588,11 +592,13 @@ void PixelTouchUI::RefreshVoice() {
         caption = "点击停止播报";
         primary = "停止播报";
     } else if (state == kDeviceStateConnecting) {
+        voice_waiting_response_ = false;
         title = "正在连接…";
         caption = "正在连接语音服务";
         primary = "连接中";
         enabled = false;
     }
+    if (state == kDeviceStateIdle) voice_waiting_response_ = false;
     SetIfChanged(voice_title_, title);
     SetIfChanged(voice_caption_, caption);
     SetIfChanged(lv_obj_get_child(voice_primary_, 0), primary);
@@ -1175,9 +1181,10 @@ void PixelTouchUI::NavigateCalendarMonth(int delta) {
     if (month < 1) { month = 12; --year; }
     if (month > 12) { month = 1; ++year; }
     if (year < 2025 || year > 2099) return;
-    calendar_year_ = selected_year_ = year;
-    calendar_month_ = selected_month_ = month;
-    selected_day_ = std::min(selected_day_, DaysInMonth(year, month));
+    // Match the approved HTML: paging changes the viewed month, not the
+    // selected date shown in the footer until the user taps another day.
+    calendar_year_ = year;
+    calendar_month_ = month;
     calendar_lookup_unavailable_ = false;
     QueueNavigate(Page::Calendar);
 }
