@@ -1,4 +1,5 @@
 #include "pixel_robot_display.h"
+#include "pixel_touch_ui.h"
 
 #if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE && CONFIG_USE_WECHAT_MESSAGE_STYLE
 
@@ -32,6 +33,10 @@ lv_obj_t* PixelRect(lv_obj_t* parent, int x, int y, int w, int h, uint32_t color
 }  // namespace
 
 PixelRobotDisplay::~PixelRobotDisplay() {
+    if (touch_ui_) {
+        DisplayLockGuard lock(this);
+        touch_ui_.reset();
+    }
     if (blink_timer_ != nullptr) {
         DisplayLockGuard lock(this);
         lv_timer_delete(blink_timer_);
@@ -104,6 +109,7 @@ void PixelRobotDisplay::SetupUI() {
             lv_timer_set_period(timer, self->blinking_ ? 130 : 3500);
         },
         3500, this);
+    touch_ui_ = std::make_unique<PixelTouchUI>(lv_screen_active());
 #if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
     // Diagnostic-only: sample in the existing LVGL task; no extra task or
     // full-screen refresh. Heap minimums are historical low-water marks.
@@ -229,20 +235,23 @@ bool PixelRobotDisplay::SetEmotion(const char* emotion) {
 
 #if CONFIG_WEATHER_DASHBOARD
 void PixelRobotDisplay::ShowDashboard() {
-    SpiLcdDisplay::ShowDashboard();
     DisplayLockGuard lock(this);
-    if (blink_timer_ != nullptr) {
-        lv_timer_pause(blink_timer_);
-        blinking_ = false;
-        SetEyes(false);
+    if (touch_ui_ != nullptr && robot_area_ != nullptr) {
+        // Show the real touch home instead of a second permanently visible
+        // dashboard. Weather/Almanac services remain shared and unchanged.
+        touch_ui_->Show(robot_area_, container_);
+    } else {
+        SpiLcdDisplay::ShowDashboard();
     }
 }
 
 void PixelRobotDisplay::HideDashboard() {
-    SpiLcdDisplay::HideDashboard();
     DisplayLockGuard lock(this);
-    if (blink_timer_ != nullptr)
-        lv_timer_resume(blink_timer_);
+    if (touch_ui_ != nullptr) {
+        touch_ui_->Hide();
+    } else {
+        SpiLcdDisplay::HideDashboard();
+    }
 }
 #endif
 
