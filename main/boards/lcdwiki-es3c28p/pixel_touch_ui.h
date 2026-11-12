@@ -51,6 +51,9 @@ private:
     bool IsSelectedToday() const;
     void ApplyPalette();
     void UpdateSliderValues();
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    void LogUiGeometry() const;
+#endif
 
     static void OnGesture(lv_event_t* event);
     static void OnSettings(lv_event_t* event);
