@@ -119,6 +119,9 @@ private:
     lv_obj_t* chat_container_ = nullptr;
     lv_obj_t* robot_slot_ = nullptr;
     lv_obj_t* home_day_label_ = nullptr;
+    lv_obj_t* home_network_icon_ = nullptr;
+    lv_obj_t* home_battery_case_ = nullptr;
+    lv_obj_t* home_battery_fill_ = nullptr;
     lv_obj_t* voice_title_ = nullptr;
     lv_obj_t* voice_caption_ = nullptr;
     lv_obj_t* voice_primary_ = nullptr;
