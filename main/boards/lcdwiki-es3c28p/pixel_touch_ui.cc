@@ -203,8 +203,45 @@ void PixelTouchUI::AttachRobot() {
     // Robot content is 104x124 on both pages; offset it under the 98px voice viewport.
     lv_obj_set_size(robot_area_, 104, 124);
     lv_obj_set_pos(robot_area_, page_ == Page::Voice ? -3 : 0, 0);
-    // The single shared character includes a home-only caption.
+    // Animate only when visible on the V1.1 pages. Style translation avoids
+    // the off-screen layer allocations caused by transform_scale on ESP32.
     auto* robot = lv_obj_get_child(robot_area_, 0);
+    if (robot != nullptr) {
+        lv_anim_delete(robot, nullptr);
+        lv_obj_set_style_translate_y(robot, 0, 0);
+        lv_anim_t float_anim;
+        lv_anim_init(&float_anim);
+        lv_anim_set_var(&float_anim, robot);
+        lv_anim_set_exec_cb(&float_anim, [](void* obj, int32_t y) {
+            lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), y, 0);
+        });
+        lv_anim_set_values(&float_anim, 0, -3);
+        lv_anim_set_duration(&float_anim, 1500);
+        lv_anim_set_playback_duration(&float_anim, 1500);
+        lv_anim_set_repeat_count(&float_anim, LV_ANIM_REPEAT_INFINITE);
+        lv_anim_start(&float_anim);
+        auto* orbit = lv_obj_get_child(robot, 0);
+        if (orbit != nullptr) {
+            lv_anim_delete(orbit, nullptr);
+            if (page_ == Page::Voice) {
+                lv_anim_t pulse;
+                lv_anim_init(&pulse);
+                lv_anim_set_var(&pulse, orbit);
+                lv_anim_set_exec_cb(&pulse, [](void* obj, int32_t opacity) {
+                    lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj),
+                                         static_cast<lv_opa_t>(opacity), 0);
+                });
+                lv_anim_set_values(&pulse, 150, 255);
+                lv_anim_set_duration(&pulse, 825);
+                lv_anim_set_playback_duration(&pulse, 825);
+                lv_anim_set_repeat_count(&pulse, LV_ANIM_REPEAT_INFINITE);
+                lv_anim_start(&pulse);
+            } else {
+                lv_obj_set_style_opa(orbit, LV_OPA_COVER, 0);
+            }
+        }
+    }
+    // The single shared character includes a home-only caption.
     if (robot != nullptr && lv_obj_get_child_count(robot) > 0) {
         auto* caption = lv_obj_get_child(robot, lv_obj_get_child_count(robot) - 1);
         if (page_ == Page::Voice) lv_obj_add_flag(caption, LV_OBJ_FLAG_HIDDEN);
@@ -220,6 +257,15 @@ void PixelTouchUI::DetachRobot() {
         lv_obj_set_parent(robot_area_, chat_container_);
         lv_obj_set_size(robot_area_, 320, 100);
         auto* robot = lv_obj_get_child(robot_area_, 0);
+        if (robot != nullptr) {
+            lv_anim_delete(robot, nullptr);
+            lv_obj_set_style_translate_y(robot, 0, 0);
+            auto* orbit = lv_obj_get_child(robot, 0);
+            if (orbit != nullptr) {
+                lv_anim_delete(orbit, nullptr);
+                lv_obj_set_style_opa(orbit, LV_OPA_COVER, 0);
+            }
+        }
         if (robot != nullptr && lv_obj_get_child_count(robot) > 0) {
             lv_obj_remove_flag(lv_obj_get_child(robot, lv_obj_get_child_count(robot) - 1),
                                LV_OBJ_FLAG_HIDDEN);
