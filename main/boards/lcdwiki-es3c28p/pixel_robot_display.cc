@@ -17,7 +17,6 @@
 
 namespace {
 constexpr uint32_t kBackground = 0x071326;
-constexpr uint32_t kRobot = 0x319da1;
 constexpr uint32_t kText = 0xd4e5e6;
 constexpr uint32_t kUserBubble = 0x28616d;
 constexpr uint32_t kAssistantBubble = 0x1a2c3c;
