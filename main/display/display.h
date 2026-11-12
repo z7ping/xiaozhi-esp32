@@ -68,7 +68,8 @@ public:
     // Optional media state for displays with a dedicated player; no media
     // buffers or playlist are owned by the device.
     virtual void SetMediaState(const char* /*state*/, const char* /*title*/,
-                               int64_t /*position_ms*/, int /*current_index*/,
+                               int64_t /*position_ms*/, int64_t /*duration_ms*/,
+                               int /*current_index*/,
                                int /*playlist_length*/, const char* /*error*/) {}
     virtual void SetMediaPlaylist(int /*offset*/,
                                   const std::vector<std::string>& /*titles*/) {}
