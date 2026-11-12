@@ -73,39 +73,57 @@ void PixelRobotDisplay::SetupUI() {
     lv_obj_clear_flag(robot_area_, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_move_to_index(robot_area_, 1);
 
+    // V1.1 mascot: 96px orbit, 78px circular face, soft eyes and smile.
+    // Keep one reusable robot object across chat and idle pages.
     lv_obj_t* robot = lv_obj_create(robot_area_);
     lv_obj_remove_style_all(robot);
-    lv_obj_set_size(robot, 104, 96);
-    lv_obj_clear_flag(robot, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(robot, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(robot, 104, 124);
+    lv_obj_clear_flag(robot, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
     lv_obj_center(robot);
 
-    // Pixel-grid silhouette follows the approved antenna/face/feet design.
-    PixelRect(robot, 22, 2, 8, 8, kRobot);
-    PixelRect(robot, 26, 10, 4, 8, kRobot);
-    PixelRect(robot, 74, 2, 8, 8, kRobot);
-    PixelRect(robot, 74, 10, 4, 8, kRobot);
-    PixelRect(robot, 28, 18, 48, 5, kRobot);
-    PixelRect(robot, 23, 23, 58, 5, kRobot);
-    PixelRect(robot, 18, 28, 68, 40, kRobot);
-    PixelRect(robot, 23, 68, 58, 5, kRobot);
-    PixelRect(robot, 28, 73, 48, 5, kRobot);
-    PixelRect(robot, 10, 31, 8, 30, kRobot);
-    PixelRect(robot, 86, 31, 8, 30, kRobot);
-    PixelRect(robot, 28, 29, 48, 35, kBackground);
-    PixelRect(robot, 33, 78, 38, 5, kRobot);
-    PixelRect(robot, 29, 83, 8, 5, kRobot);
-    PixelRect(robot, 67, 83, 8, 5, kRobot);
-    PixelRect(robot, 25, 88, 8, 5, kRobot);
-    PixelRect(robot, 71, 88, 8, 5, kRobot);
+    auto* orbit = lv_obj_create(robot);
+    lv_obj_remove_style_all(orbit);
+    lv_obj_set_pos(orbit, 4, 0);
+    lv_obj_set_size(orbit, 96, 96);
+    lv_obj_set_style_radius(orbit, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(orbit, 1, 0);
+    lv_obj_set_style_border_color(orbit, lv_color_hex(0x418b89), 0);
+    lv_obj_clear_flag(orbit, LV_OBJ_FLAG_CLICKABLE);
 
-    eyes_[0] = PixelRect(robot, 34, 37, 9, 9, kRobot);
-    eyes_[1] = PixelRect(robot, 61, 37, 9, 9, kRobot);
-    pupils_[0] = PixelRect(robot, 37, 40, 3, 3, kBackground);
-    pupils_[1] = PixelRect(robot, 64, 40, 3, 3, kBackground);
-    PixelRect(robot, 43, 53, 4, 3, kRobot);
-    mouth_ = PixelRect(robot, 47, 56, 10, 3, kRobot);
-    PixelRect(robot, 57, 53, 4, 3, kRobot);
+    auto* face = PixelRect(robot, 13, 9, 78, 78, 0x183b59);
+    lv_obj_set_style_radius(face, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_grad_color(face, lv_color_hex(0x356d8f), 0);
+    lv_obj_set_style_bg_grad_dir(face, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_border_width(face, 1, 0);
+    lv_obj_set_style_border_color(face, lv_color_hex(0x467c95), 0);
+
+    for (int i = 0; i < 2; ++i) {
+        auto* cheek = PixelRect(robot, i == 0 ? 25 : 70, 58, 9, 4, 0xd77e91);
+        lv_obj_set_style_radius(cheek, LV_RADIUS_CIRCLE, 0);
+        eyes_[i] = PixelRect(robot, i == 0 ? 34 : 61, 36, 9, 13, 0xaffbf4);
+        lv_obj_set_style_radius(eyes_[i], LV_RADIUS_CIRCLE, 0);
+        // Preserve existing blink lifecycle without a second eye timer.
+        pupils_[i] = PixelRect(robot, i == 0 ? 37 : 64, 40, 1, 1, 0xaffbf4);
+        lv_obj_add_flag(pupils_[i], LV_OBJ_FLAG_HIDDEN);
+    }
+    // Low-memory native polyline approximates the original SVG smile.
+    static const lv_point_precise_t smile_points[] = {
+        {0, 0}, {8, 9}, {16, 12}, {24, 9}, {32, 0},
+    };
+    mouth_ = lv_line_create(robot);
+    lv_line_set_points(mouth_, smile_points, 5);
+    lv_obj_set_pos(mouth_, 36, 53);
+    lv_obj_set_style_line_color(mouth_, lv_color_hex(0xb0f8f5), 0);
+    lv_obj_set_style_line_width(mouth_, 3, 0);
+    lv_obj_set_style_line_rounded(mouth_, true, 0);
+    lv_obj_clear_flag(mouth_, LV_OBJ_FLAG_CLICKABLE);
+
+    auto* caption = lv_label_create(robot);
+    lv_label_set_text(caption, "点我说话");
+    lv_obj_set_style_text_color(caption, lv_color_hex(0xa5f2e9), 0);
+    lv_obj_set_width(caption, 104);
+    lv_obj_set_style_text_align(caption, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(caption, 0, 104);
 
     HideDefaultEmotion();
     ApplyChatColors();
@@ -171,8 +189,8 @@ void PixelRobotDisplay::SetupUI() {
 
 void PixelRobotDisplay::SetEyes(bool closed) {
     for (int i = 0; i < 2; ++i) {
-        lv_obj_set_height(eyes_[i], closed ? 3 : 9);
-        lv_obj_set_y(eyes_[i], closed ? 40 : 37);
+        lv_obj_set_height(eyes_[i], closed ? 2 : 13);
+        lv_obj_set_y(eyes_[i], closed ? 41 : 36);
         if (closed)
             lv_obj_add_flag(pupils_[i], LV_OBJ_FLAG_HIDDEN);
         else
@@ -263,7 +281,7 @@ bool PixelRobotDisplay::SetEmotion(const char* emotion) {
                      strcmp(emotion, "robot_2") == 0 || strcmp(emotion, "happy") == 0;
     if (!supported)
         return false;
-    lv_obj_set_width(mouth_, subdued ? 6 : 10);
+    lv_obj_set_style_opa(mouth_, subdued ? LV_OPA_60 : LV_OPA_COVER, 0);
     HideDefaultEmotion();
     return true;
 }
