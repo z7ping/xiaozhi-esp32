@@ -73,10 +73,12 @@ bool WebsocketProtocol::IsAudioChannelOpened() const {
 
 void WebsocketProtocol::CloseAudioChannel(bool send_goodbye) {
     (void)send_goodbye;  // Websocket doesn't need to send goodbye message
+    ResetServerCapabilities();
     websocket_.reset();
 }
 
 bool WebsocketProtocol::OpenAudioChannel() {
+    ResetServerCapabilities();
     Settings settings("websocket", false);
     std::string url = settings.GetString("url");
     std::string token = settings.GetString("token");
@@ -170,6 +172,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
     });
 
     websocket_->OnDisconnected([this]() {
+        ResetServerCapabilities();
         ESP_LOGI(TAG, "Websocket disconnected");
         if (on_audio_channel_closed_ != nullptr) {
             on_audio_channel_closed_();
@@ -217,6 +220,9 @@ std::string WebsocketProtocol::GetHelloMessage() {
     cJSON_AddBoolToObject(features, "aec", true);
 #endif
     cJSON_AddBoolToObject(features, "mcp", true);
+#if CONFIG_BOARD_TYPE_LCDWIKI_ES3C28P
+    cJSON_AddBoolToObject(features, "media_control", true);
+#endif
     cJSON_AddItemToObject(root, "features", features);
     AddTextFontCapabilities(root);
     cJSON_AddStringToObject(root, "transport", "websocket");
@@ -262,5 +268,6 @@ void WebsocketProtocol::ParseServerHello(const cJSON* root) {
         }
     }
 
+    ParseServerCapabilities(root);
     xEventGroupSetBits(event_group_handle_, WEBSOCKET_PROTOCOL_SERVER_HELLO_EVENT);
 }
