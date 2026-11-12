@@ -84,7 +84,9 @@ def main():
             "source_sha256":hashlib.sha256(content).hexdigest(),
             "viewport":{"width":320,"height":240,"orientation":"landscape","dpr":1},
             "snapshots":snapshots,"svg_symbols":symbols,
-            "actions":sorted(set(re.findall(r'data-act="([^"]+)"',content.decode()))),
+            "actions":sorted(set(re.findall(r'data-act="([^"]+)"',content.decode())) | {
+                obj["action"] for state in snapshots.values() for obj in state["items"]
+                if obj.get("action")}),
             "css_keyframes":sorted(set(re.findall(r'@keyframes\s+([\w-]+)',"\n".join(css))))}
     if not args.full:
         selected = {"home", "voice.listening", "player.story.playing",
