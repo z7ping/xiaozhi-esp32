@@ -952,9 +952,10 @@ elseif(CONFIG_BOARD_TYPE_WK_ESP32S3_DEV)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
 elseif(CONFIG_BOARD_TYPE_LCDWIKI_ES3C28P)
     set(BOARD_DIR "lcdwiki-es3c28p")
-    # 240px-wide screen: the 16px builtin makes the assets packager ship the
-    # official font_noto_sans_common_16_4 CBIN (6845 glyphs) as theme font.
-    set(BUILTIN_TEXT_FONT font_noto_sans_basic_16_4)
+    # V1.1 320x240: 16px CJK glyphs overflow the 9-15px rows on the
+    # touchscreen (calendar, player and settings). The existing 14px font
+    # pack has a matching common CJK CBIN; use it without another font library.
+    set(BUILTIN_TEXT_FONT font_noto_sans_basic_14_1)
     set(BUILTIN_ICON_FONT font_material_symbols_20_4)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
     # Ship the resized QWeather icons (<icon_code>.png) in the assets image.
