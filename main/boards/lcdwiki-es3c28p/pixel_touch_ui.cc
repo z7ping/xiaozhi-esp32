@@ -127,6 +127,16 @@ void PixelTouchUI::Show(lv_obj_t* robot_area, lv_obj_t* chat_container) {
     lv_timer_resume(refresh_timer_);
 }
 
+void PixelTouchUI::ShowPlayer(lv_obj_t* robot_area, lv_obj_t* chat_container) {
+    if (robot_area == nullptr || chat_container == nullptr) return;
+    robot_area_ = robot_area;
+    chat_container_ = chat_container;
+    lv_obj_clear_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_to_index(root_, lv_obj_get_child_count(lv_obj_get_parent(root_)) - 1);
+    Navigate(Page::Player);
+    lv_timer_resume(refresh_timer_);
+}
+
 void PixelTouchUI::Hide() {
     DetachRobot();
     lv_timer_pause(refresh_timer_);
