@@ -1,47 +1,59 @@
-# ES3C28P V1.1 UI 还原基线
+# LCDWiki ES3C28P · V1.1 UI 基线和验收
 
-- 唯一原型：`index.html`（LCDWiki 320×240 横屏交互原型 V1.1，未经授权禁止修改）。
-- 稳定几何基线：`ui-baseline.json`；由 Chromium 在 320×240 逻辑坐标系中计算 DOM 布局得到，保留 7 类关键状态的锚点、字体、圆角、SVG ID 与操作。
-- 全量导出：`python scripts/extract_es3c28p_ui.py --full --output /tmp/es3c28p-ui-full.json`，可查看 13 个状态的所有可见节点、计算样式和 SVG 定义；不保存额外的第二套设计事实源。
-- 固件：`main/boards/lcdwiki-es3c28p/pixel_touch_ui.cc` + `pixel_robot_display.cc`；沿用原语音、天气、万年历、Jellyfin 和 Go 媒体控制链路，不能复制 HTML 模拟数据。
+唯一设计依据：`prototypes/esp32-ui/index.html`（用户批准的 320×240 横屏交互原型 V1.1，不得为通过测试自行修改）。
 
-## 门禁
+- `ui-baseline.json`：Chromium 计算后的 7 个关键状态锚点与 SHA256、12 个 SVG ID、19 个交互动作。
+- `scripts/extract_es3c28p_ui.py --full`：按需导出 13 个状态的完整可见 DOM 节点、计算样式、SVG 和动画；以 HTML 为单一事实来源。
+- 固件：`pixel_touch_ui.cc` / `pixel_robot_display.cc`。所有演示数据均由真实 Application、Board、WeatherService、AlmanacService 与服务端媒体状态替换。
+
+## 本地门禁（无需 CI / 截图）
 
 ```bash
 python -m pip install playwright
 python -m playwright install chromium
 python scripts/check_es3c28p_ui.py
-python scripts/check_es3c28p_ui.py --strict --runtime-tree /path/to/lvgl-runtime-tree.json
+python scripts/extract_es3c28p_ui.py --full --output /tmp/es3c28p-ui-contract-full.json
+python -m unittest discover -s scripts/tests -p 'test_es3c28p_ui_*.py' -v
 ```
 
-支持本机已安装 Chromium：设置 `CHROMIUM=/usr/bin/chromium`。
+本机已有 Chromium 可使用 `CHROMIUM=/usr/bin/chromium`。
 
-- 默认门禁：重新执行浏览器计算，比较冻结的页面锚点及原始 HTML SHA256；**通过只证明原型基线未漂移**。
-- 严格门禁：同时要求 LVGL 正式页面和运行时控件树，按同名 anchor 与 `[x,y,w,h]` 比较，每项容差 2px；没有运行时证据必须失败。正式实现不能通过修改或重新生成 HTML 基线让结果变绿。
-- 完整验收还需图标、动画、字体的实际渲染和触摸/音频/内存真机回归。不同渲染引擎，不能仅靠控件坐标宣称像素完全一致。
-- 未提供可靠截图比对时明确记录 `not-executed`；无需用户逐页挑错，差异由开发者自行消化。
+这只能证明 **HTML 基线未漂移**，不能证明 LVGL 像素 1:1。完成固件诊断构建并用真实硬件采集串口后：
 
-## 原型假数据与正式行为边界
+```bash
+python3 scripts/build.py lcdwiki-es3c28p --name lcdwiki-es3c28p-landscape-diag
+# 烧录并采集真实串口日志，例如 idf.py monitor | tee /tmp/es3c28p.log
+python scripts/parse_es3c28p_ui_log.py /tmp/es3c28p.log --output /tmp/lvgl-ui.json
+python scripts/check_es3c28p_ui.py --strict --runtime-tree /tmp/lvgl-ui.json
+```
 
-| 原型 | 固件实际来源 |
+- 诊断版在实际创建页面和打开详情/音量弹层时记录真实 LVGL 坐标，不额外创建后台任务。
+- 严格门禁逐状态、逐元素对比 `[x,y,w,h]`，误差超过 2px、缺少页面/元素或没有硬件证据即失败，不会编造通过结果。
+- 当前记录的元素**不是全量**（如不可见容器和少数图标），仍要继续补齐映射；严格门禁尚未通过。字体/图标形状、SVG 细节、动效及不同渲染引擎的像素差异还需要独立审核。
+- 未获得实际屏幕图片时视觉比对记录为 `not-executed`，不以几何通过冒充最终视觉验收。
+
+## V1.1 与旧固件能力
+
+| 原型示例 | 固件真实行为 |
 | --- | --- |
-| 2026-11-12、08:08 | SNTP/RTC 本机时间 |
-| 15°C 晴、西安 | 已有 WeatherService 快照 |
-| 农历和黄历演示 | 已有 AlmanacService，缺失时展示错误 |
-| 小兔子乖乖 / 小星星、模拟进度 | Go 服务端的实际 Jellyfin 播放状态与媒体能力协商 |
-| 语音「模拟提问」和固定回答 | Application 正式 listening/connecting/speaking 状态与服务器真实音频 |
-| 设置示例值 | 板载 Codec、Backlight 与 NVS |
+| 固定 2026-11-12、08:08 | 实际 RTC/SNTP 时间 |
+| 15°、晴、西安 | WeatherService 状态，未配置就如实提示 |
+| 模拟农历和黄历宜忌 | AlmanacService 实际缓存和按日期查询 |
+| 固定故事/儿歌、模拟进度和时长 | Go 服务端播放状态，旧版未协商时禁用控制 |
+| 模拟语音提问与固定回答 | 设备 Listening、真实 ASR 文本触发 Thinking、Speaking |
+| 演示电量 / Wi-Fi | Board 实际电池等级及网络状态图标，不支持则隐藏 |
+| HTML CSS 亮度 65–110% | 硬件 PWM 10–100%，硬件不支持超过 100% |
 
-交互基线：主页触摸机器人进入语音；故事、儿歌入口进入播放器；万年历翻月/选日/详情；音量和播放控制；首页左滑进日历、日历右滑返回。**原型未包含播放队列入口和服务端降级提示**：既有固件功能不能静默删除，必须作为明确受控例外处理。
+V1.1 视觉没有“停止”与“播放队列”按钮。为防止已有能力退化：**长按封面打开实际队列，关闭儿童模式后长按播放键停止**；Seek 仅在服务端给出可用时长时启用。此为目前的受控交互差异，仍须真机确认长按手势不误触。
 
-## UI Parity Matrix（2026-11-12）
+## UI Parity Matrix · 2026-11-12
 
-| 页面 | Layout/Token | Interaction | Real data | LVGL runtime | Physical device |
-| --- | --- | --- | --- | --- | --- |
-| 首页 | Partial（布局迁移，字体/图形待对齐） | Partial | Aligned（沿用现有服务） | not-executed | Pending |
-| 语音 | Partial（独立页面已接入，动效待实现） | Partial（真实状态，缺思考态） | Partial（原链路） | not-executed | Pending |
-| 播放器 | Missing | Partial（旧实现） | Aligned（Go 分支支持时） | not-executed | Pending |
-| 万年历 | Missing | Partial | Aligned（旧服务） | not-executed | Pending |
-| 设置 | Missing | Partial | Aligned（旧设备接口） | not-executed | Pending |
+| 页面 | Layout / Token | Interaction / Data | 运行时 / 实机 |
+| --- | --- | --- | --- |
+| 首页 | Partial：主要坐标、圆形机器人、网络电量；字体与背景仍有差异 | Partial：真实时间/天气/农历及入口 | not-executed |
+| 语音 | Partial：圆形机器人共用；呼吸/思考动效缺失 | Partial：真实 ASR、Listening/Thinking/Speaking | not-executed |
+| 播放器 | Partial：封面、时间条、圆形按钮、音量浮层 | Partial：真实媒体能力及列表/Seek/播放控制 | not-executed |
+| 万年历 | Partial：7 列网格/详情弹层按原型重排 | Partial：翻月、选日、按需查询 | not-executed |
+| 家长设置 | Partial：四行设置与滑杆/开关 | Partial：持久化儿童模式、设备亮度/音量 | not-executed |
 
-此矩阵是当前对齐状态，而非完成度百分比；验收前必须更新真实证据。
+**当前未达到“1:1 通过”或“固件功能验收通过”。** 不得因浏览器基线通过而擅自更改本状态。
