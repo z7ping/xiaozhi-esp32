@@ -195,7 +195,7 @@ void PixelTouchUI::AttachRobot() {
         return;
     }
     lv_obj_set_parent(robot_area_, robot_slot_);
-    lv_obj_set_size(robot_area_, 104, 100);
+    lv_obj_set_size(robot_area_, 104, 124);
     lv_obj_set_pos(robot_area_, 0, 0);
 }
 
@@ -295,14 +295,23 @@ void PixelTouchUI::QueueNavigate(Page page) {
 }
 
 void PixelTouchUI::BuildHeader(const char* title, bool back) {
+    // Approved V1.1 header: 320x35, transparent bar and compact back arrow.
     auto* bar = lv_obj_create(body_);
     lv_obj_set_pos(bar, 0, 0);
-    lv_obj_set_size(bar, 320, 32);
-    StylePanel(bar, kPanel, kBorder);
+    lv_obj_set_size(bar, 320, 35);
+    lv_obj_remove_style_all(bar);
+    lv_obj_set_style_border_width(bar, 1, 0);
+    lv_obj_set_style_border_side(bar, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_color(bar, lv_color_hex(0x293b4d), 0);
+    lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
     if (back) {
-        Button(bar, "", 1, 1, 43, 29, OnHome, this, MATERIAL_SYMBOLS_ARROW_BACK);
+        auto* button = Button(bar, "", 12, 2, 28, 30, OnHome, this,
+                              MATERIAL_SYMBOLS_ARROW_BACK);
+        lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(button, 0, 0);
     }
-    Label(bar, title, back ? 52 : 12, 3, back ? 215 : 260, 26);
+    auto* label = Label(bar, title, back ? 49 : 12, 8, back ? 220 : 290, 20);
+    lv_obj_set_style_text_color(label, lv_color_hex(kText), 0);
 }
 
 void PixelTouchUI::BuildBackButton() {
@@ -790,10 +799,6 @@ void PixelTouchUI::RefreshHome() {
         SetIfChanged(home_day_label_, output);
         std::snprintf(output, sizeof(output), "%02d:%02d", local.tm_hour, local.tm_min);
         SetIfChanged(time_label_, output);
-        static const char* weekday[] = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
-        std::snprintf(output, sizeof(output), "%d月%d日  %s",
-                      local.tm_mon + 1, local.tm_mday, weekday[local.tm_wday]);
-        SetIfChanged(date_label_, output);
     }
 #if CONFIG_WEATHER_DASHBOARD
     const auto weather = WeatherService::GetInstance().GetSnapshot();
