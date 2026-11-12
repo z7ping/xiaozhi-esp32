@@ -1181,7 +1181,7 @@ void PixelTouchUI::UpdateSliderValues() {
 
 void PixelTouchUI::OnGesture(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
-    auto* indev = lv_indev_get_act();
+    auto* indev = lv_indev_active();
     if (indev == nullptr) return;
     const auto direction = lv_indev_get_gesture_dir(indev);
     if (self->page_ == Page::Home && direction == LV_DIR_LEFT) {
