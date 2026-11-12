@@ -114,7 +114,7 @@ public:
     bool CanEnterSleepMode();
     void SendMcpMessage(const std::string& payload);
     // UI -> existing device control channel, scheduled on the main task.
-    void SendMediaCommand(const std::string& action);
+    void SendMediaCommand(const std::string& action, int index = -1);
     void RegisterMcpBroadcastCallback(std::function<void(const std::string&)> callback);
     void SetAecMode(AecMode mode);
     AecMode GetAecMode() const { return aec_mode_; }
