@@ -78,7 +78,8 @@ void PixelRobotDisplay::SetupUI() {
     lv_obj_t* robot = lv_obj_create(robot_area_);
     lv_obj_remove_style_all(robot);
     lv_obj_set_size(robot, 104, 124);
-    lv_obj_clear_flag(robot, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(robot, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(robot, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_center(robot);
 
     auto* orbit = lv_obj_create(robot);
