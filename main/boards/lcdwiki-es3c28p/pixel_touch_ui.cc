@@ -705,6 +705,7 @@ void PixelTouchUI::BuildPlayer() {
                                  OnMediaPrev, this, MATERIAL_SYMBOLS_SKIP_PREVIOUS);
     player_toggle_ = Button(body_, "", 136, 177, 49, 49,
                             OnMediaToggle, this, MATERIAL_SYMBOLS_PLAY_ARROW);
+    lv_obj_add_event_cb(player_toggle_, OnMediaPressed, LV_EVENT_PRESSED, this);
     player_next_button_ = Button(body_, "", 214, 181, 41, 41,
                                  OnMediaNext, this, MATERIAL_SYMBOLS_SKIP_NEXT);
     for (auto* button : {player_prev_button_, player_toggle_, player_next_button_}) {
@@ -1271,11 +1272,18 @@ void PixelTouchUI::OnMediaPrev(lv_event_t*) {
 void PixelTouchUI::OnMediaNext(lv_event_t*) {
     Application::GetInstance().SendMediaCommand("next");
 }
-void PixelTouchUI::OnMediaStop(lv_event_t*) {
+void PixelTouchUI::OnMediaPressed(lv_event_t* event) {
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->player_stop_long_press_ = false;
+}
+void PixelTouchUI::OnMediaStop(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->player_stop_long_press_ = true;
     Application::GetInstance().SendMediaCommand("stop");
 }
 void PixelTouchUI::OnMediaToggle(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    // LVGL may emit CLICKED after LONG_PRESSED: never follow stop with resume.
+    if (self->player_stop_long_press_) return;
     Application::GetInstance().SendMediaCommand(
         self->media_status_ == "playing" ? "pause" : "resume");
 }
