@@ -650,6 +650,10 @@ void PixelTouchUI::RefreshCalendar() {
     if (IsSelectedToday()) {
         info = AlmanacService::GetInstance().GetSnapshot();
     } else {
+        if (calendar_lookup_unavailable_) {
+            SetIfChanged(calendar_detail_label_, "黄历服务不可用或所选日期不支持");
+            return;
+        }
         const auto lookup = AlmanacService::GetInstance().GetDateResult();
         if (lookup.year != selected_year_ || lookup.month != selected_month_ ||
             lookup.day != selected_day_) {
@@ -709,6 +713,7 @@ void PixelTouchUI::ResetCalendarToday() {
     calendar_year_ = selected_year_ = local.tm_year + 1900;
     calendar_month_ = selected_month_ = local.tm_mon + 1;
     selected_day_ = local.tm_mday;
+    calendar_lookup_unavailable_ = false;
 }
 
 bool PixelTouchUI::IsSelectedToday() const {
@@ -729,6 +734,7 @@ void PixelTouchUI::NavigateCalendarMonth(int delta) {
     calendar_year_ = selected_year_ = year;
     calendar_month_ = selected_month_ = month;
     selected_day_ = std::min(selected_day_, DaysInMonth(year, month));
+    calendar_lookup_unavailable_ = false;
     QueueNavigate(Page::Calendar);
 }
 
@@ -835,6 +841,7 @@ void PixelTouchUI::OnCalendarDay(lv_event_t* event) {
     self->selected_year_ = self->calendar_year_;
     self->selected_month_ = self->calendar_month_;
     self->selected_day_ = day;
+    self->calendar_lookup_unavailable_ = false;
     self->UpdateCalendarSelection();
     self->RefreshCalendar();
 }
@@ -842,12 +849,10 @@ void PixelTouchUI::OnCalendarDetail(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
 #if CONFIG_WEATHER_DASHBOARD
     if (!self->IsSelectedToday()) {
-        if (!AlmanacService::GetInstance().RequestDate(
-                self->selected_year_, self->selected_month_, self->selected_day_)) {
-            SetIfChanged(self->calendar_detail_label_, "黄历服务不可用或日期不支持");
-        } else {
-            self->RefreshCalendar();
-        }
+        self->calendar_lookup_unavailable_ =
+            !AlmanacService::GetInstance().RequestDate(
+                self->selected_year_, self->selected_month_, self->selected_day_);
+        self->RefreshCalendar();
     } else {
         self->RefreshCalendar();
     }
