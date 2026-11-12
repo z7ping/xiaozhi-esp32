@@ -734,13 +734,34 @@ void Application::InitializeProtocol() {
                     : 0;
             int current_index = cJSON_IsNumber(index) ? index->valueint : -1;
             int playlist_length = cJSON_IsNumber(length) ? length->valueint : 0;
+            auto page = cJSON_GetObjectItem(root, "page_offset");
+            bool has_page = cJSON_IsNumber(page);
+            int page_offset = has_page ? page->valueint : 0;
+            std::vector<std::string> playlist_titles;
+            if (has_page) {
+                auto entries = cJSON_GetObjectItem(root, "playlist");
+                if (cJSON_IsArray(entries)) {
+                    int count = cJSON_GetArraySize(entries);
+                    for (int i = 0; i < count && i < 6; ++i) {
+                        auto item = cJSON_GetArrayItem(entries, i);
+                        auto name = cJSON_GetObjectItem(item, "title");
+                        const char* value = cJSON_IsString(name) ? name->valuestring : "";
+                        playlist_titles.emplace_back(value, strnlen(value, 192));
+                    }
+                }
+            }
             Schedule([display, media_state = std::string(state->valuestring),
                       media_title = std::string(title_str, strnlen(title_str, 192)),
                       media_error = std::string(error_str, strnlen(error_str, 128)),
-                      position_ms, current_index, playlist_length]() {
+                      position_ms, current_index, playlist_length,
+                      has_page, page_offset,
+                      playlist_titles = std::move(playlist_titles)]() {
                 display->SetMediaState(media_state.c_str(), media_title.c_str(),
                                        position_ms, current_index, playlist_length,
                                        media_error.c_str());
+                if (has_page) {
+                    display->SetMediaPlaylist(page_offset, playlist_titles);
+                }
             });
         } else if (strcmp(type->valuestring, "mcp") == 0) {
             auto payload = cJSON_GetObjectItem(root, "payload");
