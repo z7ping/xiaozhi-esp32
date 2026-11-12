@@ -5,6 +5,7 @@
 #include "display/lcd_display.h"
 #include "led/single_led.h"
 #include "mcp_server.h"
+#include "pixel_robot_display.h"
 #include "wifi_board.h"
 
 #include "adc_battery_monitor.h"
@@ -97,9 +98,15 @@ private:
         ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y));
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel, true));
 
+#if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE && CONFIG_USE_WECHAT_MESSAGE_STYLE
+        display_ = new PixelRobotDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                                         DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X,
+                                         DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+#else
         display_ = new SpiLcdDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
                                      DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X,
                                      DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+#endif
     }
 
     void InitializeTouch() {
