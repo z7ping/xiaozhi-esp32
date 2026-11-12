@@ -12,6 +12,7 @@ public:
     ~PixelTouchUI();
 
     void Show(lv_obj_t* robot_area, lv_obj_t* chat_container);
+    void ShowPlayer(lv_obj_t* robot_area, lv_obj_t* chat_container);
     void Hide();
     void Refresh();
     void SetMediaState(const char* state, const char* title, int64_t position_ms,
