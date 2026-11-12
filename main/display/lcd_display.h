@@ -39,6 +39,9 @@ protected:
 #if CONFIG_WEATHER_DASHBOARD
     std::unique_ptr<DashboardUI> dashboard_;
     void SetupDashboard();
+    // Board-specific subclasses may replace the standby UI while keeping
+    // weather and almanac services (and avoiding unused LVGL objects).
+    virtual bool UseLegacyDashboard() const { return true; }
 #endif
 
     void InitializeLcdThemes();

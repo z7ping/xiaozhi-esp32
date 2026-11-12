@@ -105,6 +105,36 @@ void Protocol::SendMcpMessage(const std::string& payload) {
     SendText(message);
 }
 
+void Protocol::SendMediaControl(const std::string& action, int index, int64_t position_ms) {
+    // Defence in depth for callers outside the touch UI.
+    if (!SupportsMediaControl()) return;
+    cJSON* root = cJSON_CreateObject();
+    if (root == nullptr) return;
+    cJSON_AddStringToObject(root, "type", "media");
+    cJSON_AddStringToObject(root, "session_id", session_id_.c_str());
+    cJSON_AddStringToObject(root, "state", action.c_str());
+    if (index >= 0) cJSON_AddNumberToObject(root, "index", index);
+    if (position_ms >= 0) {
+        cJSON_AddNumberToObject(root, "position_ms", static_cast<double>(position_ms));
+    }
+    char* encoded = cJSON_PrintUnformatted(root);
+    if (encoded != nullptr) {
+        SendText(encoded);
+        cJSON_free(encoded);
+    }
+    cJSON_Delete(root);
+}
+
+void Protocol::ParseServerCapabilities(const cJSON* hello) {
+    auto* features = cJSON_GetObjectItemCaseSensitive(hello, "features");
+    auto* media = cJSON_IsObject(features)
+        ? cJSON_GetObjectItemCaseSensitive(features, "media_control")
+        : nullptr;
+    const bool supported = cJSON_IsTrue(media);
+    media_control_supported_.store(supported);
+    ESP_LOGI(TAG, "Server media control: %s", supported ? "supported" : "unavailable");
+}
+
 bool Protocol::IsTimeout() const {
     const int kTimeoutSeconds = 120;
     auto now = std::chrono::steady_clock::now();

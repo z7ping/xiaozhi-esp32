@@ -65,6 +65,14 @@ public:
     virtual void SetHideSubtitle(bool hide) { (void)hide; }
     virtual void ShowDashboard() {}
     virtual void HideDashboard() {}
+    // Optional media state for displays with a dedicated player; no media
+    // buffers or playlist are owned by the device.
+    virtual void SetMediaState(const char* /*state*/, const char* /*title*/,
+                               int64_t /*position_ms*/, int64_t /*duration_ms*/,
+                               int /*current_index*/,
+                               int /*playlist_length*/, const char* /*error*/) {}
+    virtual void SetMediaPlaylist(int /*offset*/,
+                                  const std::vector<std::string>& /*titles*/) {}
     virtual bool InsertAnimDialog(const char* name, uint32_t duration_ms) {
         (void)name;
         (void)duration_ms;

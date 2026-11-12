@@ -98,6 +98,7 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
     mqtt_->SetKeepAlive(keepalive_interval);
 
     mqtt_->OnDisconnected([this]() {
+        ResetServerCapabilities();
         if (on_disconnected_ != nullptr) {
             on_disconnected_();
         }
@@ -247,6 +248,7 @@ bool MqttProtocol::SendAudio(std::unique_ptr<AudioStreamPacket> packet) {
 }
 
 void MqttProtocol::CloseAudioChannel(bool send_goodbye) {
+    ResetServerCapabilities();
     std::shared_ptr<Udp> udp;
     {
         std::lock_guard<std::mutex> lock(channel_mutex_);
@@ -272,6 +274,7 @@ void MqttProtocol::CloseAudioChannel(bool send_goodbye) {
 }
 
 bool MqttProtocol::OpenAudioChannel() {
+    ResetServerCapabilities();
     if (mqtt_ == nullptr || !mqtt_->IsConnected()) {
         ESP_LOGI(TAG, "MQTT is not connected, try to connect now");
         if (!StartMqttClient(true)) {
@@ -395,6 +398,9 @@ std::string MqttProtocol::GetHelloMessage() {
     cJSON_AddBoolToObject(features, "aec", true);
 #endif
     cJSON_AddBoolToObject(features, "mcp", true);
+#if CONFIG_BOARD_TYPE_LCDWIKI_ES3C28P
+    cJSON_AddBoolToObject(features, "media_control", true);
+#endif
     cJSON_AddItemToObject(root, "features", features);
     AddTextFontCapabilities(root);
     cJSON* audio_params = cJSON_CreateObject();
@@ -499,6 +505,7 @@ void MqttProtocol::ParseServerHello(const cJSON* root) {
         local_sequence_ = 0;
         remote_sequence_ = 0;
     }
+    ParseServerCapabilities(root);
     xEventGroupSetBits(event_group_handle_, MQTT_PROTOCOL_SERVER_HELLO_EVENT);
 }
 

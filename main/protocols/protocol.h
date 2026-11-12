@@ -3,6 +3,7 @@
 
 #include <cJSON.h>
 #include <chrono>
+#include <atomic>
 #include <functional>
 #include <string>
 #include <vector>
@@ -66,6 +67,10 @@ public:
     virtual void SendStopListening();
     virtual void SendAbortSpeaking(AbortReason reason);
     virtual void SendMcpMessage(const std::string& message);
+    void SendMediaControl(const std::string& action, int index = -1,
+                          int64_t position_ms = -1);
+    // An absent feature in an older server hello means media control is unavailable.
+    bool SupportsMediaControl() const { return media_control_supported_.load(); }
 
 protected:
     std::function<void(const cJSON* root)> on_incoming_json_;
@@ -80,6 +85,10 @@ protected:
     int server_frame_duration_ = 60;
     bool error_occurred_ = false;
     std::string session_id_;
+    std::atomic<bool> media_control_supported_{false};
+
+    void ResetServerCapabilities() { media_control_supported_.store(false); }
+    void ParseServerCapabilities(const cJSON* hello);
     std::chrono::time_point<std::chrono::steady_clock> last_incoming_time_;
 
     virtual bool SendText(const std::string& text) = 0;

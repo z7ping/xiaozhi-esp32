@@ -289,6 +289,7 @@ void Application::Run() {
 
         if (bits & MAIN_EVENT_CLOCK_TICK) {
             clock_ticks_++;
+            RefreshMediaControlState();
             auto display = Board::GetInstance().GetDisplay();
             display->UpdateStatusBar();
 
@@ -341,6 +342,7 @@ void Application::HandleNetworkConnectedEvent() {
 }
 
 void Application::HandleNetworkDisconnectedEvent() {
+    media_control_state_.store(MediaControlState::kDisconnected);
     // Close current conversation when network disconnected
     auto state = GetDeviceState();
     if (state == kDeviceStateNotifying) {
@@ -600,6 +602,7 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelOpened([this, codec, &board]() {
+        media_control_generation_.fetch_add(1);
         board.SetPowerSaveLevel(PowerSaveLevel::PERFORMANCE);
         if (protocol_->server_sample_rate() != codec->output_sample_rate()) {
             ESP_LOGW(TAG,
@@ -610,6 +613,7 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelClosed([this, &board]() {
+        media_control_state_.store(MediaControlState::kDisconnected);
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         Schedule([this]() {
             auto display = Board::GetInstance().GetDisplay();
@@ -716,6 +720,56 @@ void Application::InitializeProtocol() {
                     display->SetEmotion(emotion_str.c_str());
                 });
             }
+        } else if (strcmp(type->valuestring, "media") == 0) {
+            // The Go server owns playback and playlists. Copy only bounded
+            // metadata before leaving the incoming JSON callback.
+            auto state = cJSON_GetObjectItem(root, "state");
+            if (!cJSON_IsString(state)) return;
+            auto title = cJSON_GetObjectItem(root, "title");
+            auto position = cJSON_GetObjectItem(root, "position_ms");
+            auto duration = cJSON_GetObjectItem(root, "duration_ms");
+            auto index = cJSON_GetObjectItem(root, "current_index");
+            auto length = cJSON_GetObjectItem(root, "playlist_length");
+            auto error = cJSON_GetObjectItem(root, "error");
+            const char* title_str = cJSON_IsString(title) ? title->valuestring : "";
+            const char* error_str = cJSON_IsString(error) ? error->valuestring : "";
+            int64_t position_ms =
+                cJSON_IsNumber(position) && position->valuedouble >= 0
+                    ? static_cast<int64_t>(position->valuedouble)
+                    : 0;
+            int64_t duration_ms = cJSON_IsNumber(duration) && duration->valuedouble > 0
+                ? static_cast<int64_t>(duration->valuedouble) : 0;
+            int current_index = cJSON_IsNumber(index) ? index->valueint : -1;
+            int playlist_length = cJSON_IsNumber(length) ? length->valueint : 0;
+            auto page = cJSON_GetObjectItem(root, "page_offset");
+            bool has_page = cJSON_IsNumber(page);
+            int page_offset = has_page ? page->valueint : 0;
+            std::vector<std::string> playlist_titles;
+            if (has_page) {
+                auto entries = cJSON_GetObjectItem(root, "playlist");
+                if (cJSON_IsArray(entries)) {
+                    int count = cJSON_GetArraySize(entries);
+                    for (int i = 0; i < count && i < 6; ++i) {
+                        auto item = cJSON_GetArrayItem(entries, i);
+                        auto name = cJSON_GetObjectItem(item, "title");
+                        const char* value = cJSON_IsString(name) ? name->valuestring : "";
+                        playlist_titles.emplace_back(value, strnlen(value, 192));
+                    }
+                }
+            }
+            Schedule([display, media_state = std::string(state->valuestring),
+                      media_title = std::string(title_str, strnlen(title_str, 192)),
+                      media_error = std::string(error_str, strnlen(error_str, 128)),
+                      position_ms, duration_ms, current_index, playlist_length,
+                      has_page, page_offset,
+                      playlist_titles = std::move(playlist_titles)]() {
+                display->SetMediaState(media_state.c_str(), media_title.c_str(),
+                                       position_ms, duration_ms, current_index, playlist_length,
+                                       media_error.c_str());
+                if (has_page) {
+                    display->SetMediaPlaylist(page_offset, playlist_titles);
+                }
+            });
         } else if (strcmp(type->valuestring, "mcp") == 0) {
             auto payload = cJSON_GetObjectItem(root, "payload");
             if (cJSON_IsObject(payload)) {
@@ -885,6 +939,8 @@ void Application::ContinueOpenAudioChannel(ListeningMode mode) {
         }
     }
 
+    RefreshMediaControlState();
+
     SetListeningMode(mode);
 }
 
@@ -1021,6 +1077,8 @@ void Application::ContinueWakeWordInvoke(const std::string& wake_word) {
             return;
         }
     }
+
+    RefreshMediaControlState();
 
     ESP_LOGI(TAG, "Wake word detected: %s", wake_word.c_str());
 #if CONFIG_SEND_WAKE_WORD_DATA
@@ -1314,6 +1372,7 @@ ListeningMode Application::GetDefaultListeningMode() const {
 
 void Application::Reboot() {
     ESP_LOGI(TAG, "Rebooting...");
+    media_control_state_.store(MediaControlState::kDisconnected);
     if (GetDeviceState() == kDeviceStateNotifying) {
         StopNotification();
     }
@@ -1453,6 +1512,32 @@ void Application::SendMcpMessage(const std::string& payload) {
     });
 }
 
+void Application::RefreshMediaControlState() {
+    // Protocol construction runs on the activation task; only inspect its
+    // pointer on the main task after activation has completed.
+    const auto state = GetDeviceState();
+    if (!startup_completed_ || state == kDeviceStateActivating || state == kDeviceStateStarting ||
+        state == kDeviceStateWifiConfiguring || !protocol_ || !protocol_->IsAudioChannelOpened()) {
+        media_control_state_.store(MediaControlState::kDisconnected);
+    } else if (!protocol_->SupportsMediaControl()) {
+        media_control_state_.store(MediaControlState::kUnsupported);
+    } else {
+        media_control_state_.store(MediaControlState::kAvailable);
+    }
+}
+
+void Application::SendMediaCommand(const std::string& action, int index, int64_t position_ms) {
+    // Do not send unsupported media messages to legacy servers. Recheck when
+    // dispatched: the connection can close after the touch callback.
+    if (!IsMediaControlAvailable()) return;
+    Schedule([this, action, index, position_ms]() {
+        RefreshMediaControlState();
+        if (IsMediaControlAvailable()) {
+            protocol_->SendMediaControl(action, index, position_ms);
+        }
+    });
+}
+
 void Application::SetAecMode(AecMode mode) {
     aec_mode_ = mode;
     Schedule([this]() {
@@ -1484,6 +1569,7 @@ void Application::PlaySound(const std::string_view& sound) { audio_service_.Play
 
 void Application::ResetProtocol() {
     Schedule([this]() {
+        media_control_state_.store(MediaControlState::kDisconnected);
         if (GetDeviceState() == kDeviceStateNotifying) {
             StopNotification();
         }

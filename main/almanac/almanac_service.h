@@ -31,6 +31,20 @@ struct AlmanacSnapshot {
     time_t updated_at = 0;
 };
 
+// One on-demand date result (no unbounded per-day cache).
+// Used by the calendar detail view without changing today's dashboard snapshot.
+struct AlmanacDateResult {
+    int year = 0;
+    int month = 0;
+    int day = 0;
+    bool loading = false;
+    bool ready = false;
+    bool failed = false;
+    bool credentials_invalid = false;
+    bool quota_exceeded = false;
+    AlmanacSnapshot snapshot;
+};
+
 class AlmanacService {
 public:
     static AlmanacService& GetInstance();
@@ -41,11 +55,16 @@ public:
     void OnNetworkDisconnected();
 
     AlmanacSnapshot GetSnapshot();
+    // Asynchronously read a selected day using the existing almanac task.
+    // Rejects unsupported dates, no network task is created for the UI.
+    bool RequestDate(int year, int month, int day);
+    AlmanacDateResult GetDateResult();
     void SetUpdateCallback(std::function<void()> callback);
 
 private:
     AlmanacService() = default;
     void TaskLoop();
+    void ProcessDateLookup();
     void Publish(const AlmanacSnapshot& snapshot);
 
     std::atomic<bool> started_{false};
@@ -53,6 +72,8 @@ private:
     TaskHandle_t task_ = nullptr;
     std::mutex mutex_;
     AlmanacSnapshot snapshot_;
+    AlmanacDateResult date_result_;
+    bool date_lookup_pending_ = false;
     std::function<void()> update_callback_;
     AlmanacKeyStore key_store_;
 };
