@@ -51,6 +51,10 @@ decisions:
   - "资源基线优先于完整交互页面实现"
   - "原有普通横屏构建保持默认关闭资源采样"
 
+work_items:
+  pull_requests:
+    - 2
+
 repository:
   provider: github
   branch: "feat/es3c28p-resource-baseline"
