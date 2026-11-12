@@ -28,8 +28,9 @@ python scripts/check_es3c28p_ui.py --strict --runtime-tree /tmp/lvgl-ui.json
 ```
 
 - 诊断版在实际创建页面和打开详情/音量弹层时记录真实 LVGL 坐标，不额外创建后台任务。
-- 严格门禁逐状态、逐元素对比 `[x,y,w,h]`，误差超过 2px、缺少页面/元素或没有硬件证据即失败，不会编造通过结果。
-- 当前记录的元素**不是全量**（如不可见容器和少数图标），仍要继续补齐映射；严格门禁尚未通过。字体/图标形状、SVG 细节、动效及不同渲染引擎的像素差异还需要独立审核。
+- 严格门禁要求原型的 **13 个交互状态**都出现在实际运行时日志中；对冻结基线中的 7 个关键状态逐元素比较 `[x,y,w,h]`，误差超过 2px、缺失页面/元素即失败。
+- 日志每次采样输出 `begin=1` 边界，解析器丢弃上一轮同名状态坐标；不带边界的旧日志禁止通过，避免虚假验收。
+- 当前运行时记录的元素**还不是全量**（包括部分 CSS 逻辑分组），必须继续补齐可观测控件映射；严格门禁尚未通过。字体、光效、部分 SVG 轮廓及真实动效还需要独立审核。书本图标已根据批准 SVG 转为 LVGL 线条，仍有细微描边差异。
 - 未获得实际屏幕图片时视觉比对记录为 `not-executed`，不以几何通过冒充最终视觉验收。
 
 ## V1.1 与旧固件能力
@@ -50,10 +51,10 @@ V1.1 视觉没有“停止”与“播放队列”按钮。为防止已有能力
 
 | 页面 | Layout / Token | Interaction / Data | 运行时 / 实机 |
 | --- | --- | --- | --- |
-| 首页 | Partial：主要坐标、圆形机器人、网络电量；字体与背景仍有差异 | Partial：真实时间/天气/农历及入口 | not-executed |
-| 语音 | Partial：圆形机器人共用；呼吸/思考动效缺失 | Partial：真实 ASR、Listening/Thinking/Speaking | not-executed |
+| 首页 | Partial：主要坐标、圆形机器人、网络电量和 3s 浮动；字体、光效仍有差异 | Partial：真实时间/天气/农历及入口 | not-executed |
+| 语音 | Partial：圆形机器人共用；呼吸环与眨眼节拍实现，思考态旋转仍未还原 | Partial：真实 ASR、Listening/Thinking/Speaking | not-executed |
 | 播放器 | Partial：封面、时间条、圆形按钮、音量浮层 | Partial：真实媒体能力及列表/Seek/播放控制 | not-executed |
-| 万年历 | Partial：7 列网格/详情弹层按原型重排 | Partial：翻月、选日、按需查询 | not-executed |
+| 万年历 | Partial：7 列网格/详情弹层按原型重排 | Partial：翻月保持所选日期，农历从真实 AlmanacService 获取 | not-executed |
 | 家长设置 | Partial：四行设置与滑杆/开关 | Partial：持久化儿童模式、设备亮度/音量 | not-executed |
 
 **当前未达到“1:1 通过”或“固件功能验收通过”。** 不得因浏览器基线通过而擅自更改本状态。
