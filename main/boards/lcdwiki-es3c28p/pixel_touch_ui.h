@@ -130,6 +130,7 @@ private:
     lv_obj_t* calendar_detail_label_ = nullptr;
     lv_obj_t* calendar_month_label_ = nullptr;
     lv_obj_t* calendar_selected_label_ = nullptr;
+    lv_obj_t* calendar_lunar_label_ = nullptr;
     lv_obj_t* calendar_details_popup_ = nullptr;
     lv_obj_t* child_mode_switch_ = nullptr;
     lv_obj_t* settings_foot_ = nullptr;
