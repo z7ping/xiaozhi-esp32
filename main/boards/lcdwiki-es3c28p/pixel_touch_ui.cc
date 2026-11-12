@@ -475,7 +475,7 @@ void PixelTouchUI::BuildHome() {
     Label(body_, "你好，我是天天", 31, 160, 145, 18, kMuted);
 
     auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this,
-                         MATERIAL_SYMBOLS_HEADPHONES);
+                         MATERIAL_SYMBOLS_BOOK);
     auto* song = Button(body_, "听儿歌", 114, 185, 93, 43, OnSong, this,
                         MATERIAL_SYMBOLS_MUSIC_NOTE);
     auto* calendar = Button(body_, "万年历", 214, 185, 93, 43, OnCalendar, this,
