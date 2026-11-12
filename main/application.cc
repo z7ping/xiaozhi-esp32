@@ -1500,10 +1500,10 @@ void Application::SendMcpMessage(const std::string& payload) {
     });
 }
 
-void Application::SendMediaCommand(const std::string& action, int index) {
-    Schedule([this, action, index]() {
+void Application::SendMediaCommand(const std::string& action, int index, int64_t position_ms) {
+    Schedule([this, action, index, position_ms]() {
         if (protocol_) {
-            protocol_->SendMediaControl(action, index);
+            protocol_->SendMediaControl(action, index, position_ms);
         }
     });
 }
