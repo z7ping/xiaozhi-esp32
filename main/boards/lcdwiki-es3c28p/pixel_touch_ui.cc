@@ -11,6 +11,7 @@
 #if CONFIG_WEATHER_DASHBOARD
 #include "almanac_service.h"
 #include "weather_service.h"
+LV_FONT_DECLARE(lv_font_impact_64);
 #endif
 
 #include <cstdio>
@@ -276,11 +277,14 @@ void PixelTouchUI::BuildHome() {
     BuildHeader("TIAN TIAN / OS");
     Button(body_, "", 270, 1, 48, 30, OnSettings, this, MATERIAL_SYMBOLS_SETTINGS);
 
-    Label(body_, "HELLO, TIAN TIAN", 12, 43, 165, 24, kMuted);
-    time_label_ = Label(body_, "--:--", 12, 72, 170, 42);
-    date_label_ = Label(body_, "", 12, 119, 166, 26, kMuted);
-    weather_label_ = Label(body_, "天气未就绪", 12, 149, 172, 24, kAccent);
-    lunar_label_ = Label(body_, "", 12, 178, 175, 20, kMuted);
+    Label(body_, "TIAN TIAN", 12, 40, 165, 23, kAccent);
+    time_label_ = Label(body_, "--:--", 12, 64, 178, 70);
+#if CONFIG_WEATHER_DASHBOARD
+    lv_obj_set_style_text_font(time_label_, &lv_font_impact_64, 0);
+#endif
+    date_label_ = Label(body_, "", 12, 135, 175, 25, kMuted);
+    weather_label_ = Label(body_, "天气未就绪", 12, 161, 175, 26, kAccent);
+    lunar_label_ = Label(body_, "", 12, 183, 174, 18, kMuted);
 
     robot_slot_ = Button(body_, "", 194, 40, 116, 104, OnTalk, this);
     Label(body_, "点我说话", 205, 153, 102, 27, kAccent);
@@ -511,6 +515,19 @@ void PixelTouchUI::UpdatePlayer() {
 
 void PixelTouchUI::BuildSettings() {
     BuildHeader("家长设置", true);
+    auto* settings_panel = lv_obj_create(body_);
+    lv_obj_set_pos(settings_panel, 9, 37);
+    lv_obj_set_size(settings_panel, 302, 197);
+    StylePanel(settings_panel, kBg, kBorder);
+    for (int y : {84, 132, 181}) {
+        auto* separator = lv_obj_create(body_);
+        lv_obj_remove_style_all(separator);
+        lv_obj_set_pos(separator, 18, y);
+        lv_obj_set_size(separator, 284, 1);
+        lv_obj_set_style_bg_color(separator, lv_color_hex(kBorder), 0);
+        lv_obj_set_style_bg_opa(separator, LV_OPA_COVER, 0);
+        lv_obj_clear_flag(separator, LV_OBJ_FLAG_CLICKABLE);
+    }
     Label(body_, "儿童模式", 14, 40, 140, 25);
     Label(body_, "减少误触操作", 14, 61, 140, 18, kMuted);
     child_mode_switch_ = lv_switch_create(body_);
@@ -571,21 +588,28 @@ void PixelTouchUI::RefreshHome() {
     if (local.tm_year >= 125) {
         std::snprintf(output, sizeof(output), "%02d:%02d", local.tm_hour, local.tm_min);
         SetIfChanged(time_label_, output);
-        std::snprintf(output, sizeof(output), "%d月%d日", local.tm_mon + 1, local.tm_mday);
+        static const char* weekday[] = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
+        std::snprintf(output, sizeof(output), "%d月%d日  %s",
+                      local.tm_mon + 1, local.tm_mday, weekday[local.tm_wday]);
         SetIfChanged(date_label_, output);
     }
 #if CONFIG_WEATHER_DASHBOARD
     const auto weather = WeatherService::GetInstance().GetSnapshot();
     if (weather.valid) {
-        std::snprintf(output, sizeof(output), "%d°C %s", weather.temperature,
-                      weather.weather_text.c_str());
+        std::snprintf(output, sizeof(output), "%d°C %s %s", weather.temperature,
+                      weather.city.c_str(), weather.weather_text.c_str());
         SetIfChanged(weather_label_, output);
     } else {
         SetIfChanged(weather_label_, weather.no_key ? "天气未配置" : "天气暂无数据");
     }
     const auto almanac = AlmanacService::GetInstance().GetSnapshot();
-    SetIfChanged(lunar_label_,
-                 almanac.valid ? almanac.lunar_date.c_str() : "农历暂无数据");
+    if (almanac.valid) {
+        std::string lunar = "农历 " + almanac.lunar_date;
+        if (!almanac.solar_term.empty()) lunar += " · " + almanac.solar_term;
+        SetIfChanged(lunar_label_, lunar.c_str());
+    } else {
+        SetIfChanged(lunar_label_, "农历暂无数据");
+    }
 #endif
 }
 
