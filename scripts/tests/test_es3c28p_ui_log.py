@@ -20,6 +20,16 @@ I (130) ES3C28P_UI: state=voice.listening anchor=voice-title x=8 y=151 w=304 h=2
                          [8, 151, 304, 24])
         self.assertNotIn("player.story.playing", result["states"])
 
+    def test_detects_real_font_clipping_warnings(self):
+        log = """W (91) ES3C28P_UI: label clipped: text=农历 box_h=14 font_h=16
+I (99) ES3C28P_UI: state=home begin=1
+I (101) ES3C28P_UI: state=home anchor=.clock x=17 y=52 w=192 h=62
+"""
+        result, count = parse(log)
+        self.assertEqual(count, 1)
+        self.assertEqual(len(result["layout_warnings"]), 1)
+        self.assertIn("font_h=16", result["layout_warnings"][0])
+
     def test_no_fake_defaults(self):
         result, count = parse("NO ESP32 LCD DATA\n")
         self.assertEqual(count, 0)
