@@ -116,6 +116,7 @@ private:
     lv_obj_t* chat_container_ = nullptr;
     lv_obj_t* robot_slot_ = nullptr;
     lv_obj_t* home_day_label_ = nullptr;
+    lv_obj_t* home_hint_label_ = nullptr;
     lv_obj_t* home_network_icon_ = nullptr;
     lv_obj_t* home_battery_case_ = nullptr;
     lv_obj_t* home_battery_fill_ = nullptr;
@@ -134,6 +135,7 @@ private:
     lv_obj_t* calendar_details_popup_ = nullptr;
     lv_obj_t* child_mode_switch_ = nullptr;
     lv_obj_t* settings_foot_ = nullptr;
+    lv_obj_t* settings_layout_detail_ = nullptr;
     lv_obj_t* brightness_slider_ = nullptr;
     lv_obj_t* volume_slider_ = nullptr;
     lv_obj_t* player_title_ = nullptr;
