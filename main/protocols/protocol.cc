@@ -105,12 +105,13 @@ void Protocol::SendMcpMessage(const std::string& payload) {
     SendText(message);
 }
 
-void Protocol::SendMediaControl(const std::string& action) {
+void Protocol::SendMediaControl(const std::string& action, int index) {
     cJSON* root = cJSON_CreateObject();
     if (root == nullptr) return;
     cJSON_AddStringToObject(root, "type", "media");
     cJSON_AddStringToObject(root, "session_id", session_id_.c_str());
     cJSON_AddStringToObject(root, "state", action.c_str());
+    if (index >= 0) cJSON_AddNumberToObject(root, "index", index);
     char* encoded = cJSON_PrintUnformatted(root);
     if (encoded != nullptr) {
         SendText(encoded);
