@@ -351,6 +351,7 @@ void PixelTouchUI::Navigate(Page page) {
     for (auto& button : playlist_buttons_) button = nullptr;
     calendar_month_label_ = nullptr;
     calendar_selected_label_ = nullptr;
+    calendar_lunar_label_ = nullptr;
     calendar_details_popup_ = nullptr;
     for (auto& cell : calendar_cells_) cell = nullptr;
     child_mode_switch_ = nullptr;
@@ -458,6 +459,7 @@ void PixelTouchUI::LogUiGeometry() const {
         log(".header", lv_obj_get_child(body_, 0));
         log("cal-month", calendar_month_label_);
         log("cal-picked", calendar_selected_label_);
+        log("cal-lunar", calendar_lunar_label_);
         log("@cal-detail", calendar_selected_label_ ?
                              lv_obj_get_parent(calendar_selected_label_) : nullptr);
         log("cal-detail", calendar_details_popup_);
@@ -728,6 +730,7 @@ void PixelTouchUI::BuildCalendar() {
     lv_obj_add_flag(footer, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(footer, OnCalendarDetail, LV_EVENT_CLICKED, this);
     calendar_selected_label_ = Label(footer, "", 11, 2, 180, 16, kText);
+    calendar_lunar_label_ = Label(footer, "农历待查询", 11, 18, 178, 13, 0x94abbf);
     Label(footer, "查看黄历详情 ›", 195, 8, 92, 19, 0x80dfd2);
 
     calendar_details_popup_ = lv_obj_create(body_);
@@ -1136,6 +1139,7 @@ void PixelTouchUI::RefreshCalendar() {
     SetIfChanged(calendar_date_label_, date);
     std::snprintf(date, sizeof(date), "%d月%d日", selected_month_, selected_day_);
     SetIfChanged(calendar_selected_label_, date);
+    SetIfChanged(calendar_lunar_label_, "农历待查询");
 #if CONFIG_WEATHER_DASHBOARD
     AlmanacSnapshot info;
     if (IsSelectedToday()) {
@@ -1169,6 +1173,7 @@ void PixelTouchUI::RefreshCalendar() {
                      info.no_credentials ? "请先配置万年历密钥" : "今日黄历暂无数据");
         return;
     }
+    SetIfChanged(calendar_lunar_label_, ("农历 " + info.lunar_date).c_str());
     std::string message = "农历 " + info.lunar_date;
     if (!info.solar_term.empty()) message += "\n节气 " + info.solar_term;
     if (!info.yi.empty()) message += "\n宜 " + info.yi.front();
@@ -1176,6 +1181,7 @@ void PixelTouchUI::RefreshCalendar() {
     SetIfChanged(calendar_detail_label_, message.c_str());
 #else
     SetIfChanged(calendar_detail_label_, "当前固件未启用黄历服务");
+    SetIfChanged(calendar_lunar_label_, "农历不可用");
 #endif
 }
 
