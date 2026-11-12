@@ -258,6 +258,7 @@ void PixelRobotDisplay::SetChatMessage(const char* role, const char* content) {
     DisplayLockGuard lock(this);
     StyleMessages();
     HideDefaultEmotion();
+    if (touch_ui_ != nullptr) touch_ui_->OnChatMessage(role, content);
 }
 
 void PixelRobotDisplay::RemoveChatMessage(const char* role, const char* content) {
