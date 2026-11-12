@@ -289,10 +289,74 @@ void PixelTouchUI::BuildHome() {
 }
 
 void PixelTouchUI::BuildCalendar() {
-    BuildHeader("今日万年历");
-    calendar_date_label_ = Label(body_, "读取日期...", 14, 48, 290, 30, kAccent);
-    calendar_detail_label_ = Label(body_, "正在读取黄历", 14, 91, 292, 96, kText);
-    BuildBackButton();
+    BuildHeader("万年历", true);
+    Button(body_, "今天", 261, 35, 53, 28, OnCalendarToday, this);
+    Button(body_, "", 10, 35, 43, 29, OnCalendarPrevious, this,
+           MATERIAL_SYMBOLS_KEYBOARD_ARROW_LEFT);
+    calendar_month_label_ = Label(body_, "", 89, 39, 151, 25, kAccent);
+    Button(body_, "", 210, 35, 43, 29, OnCalendarNext, this,
+           MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT);
+
+    static constexpr const char* week[] = {"日", "一", "二", "三", "四", "五", "六"};
+    for (int col = 0; col < 7; ++col) {
+        Label(body_, week[col], 23 + col * 43, 68, 28, 19, kMuted);
+    }
+    std::time_t now = std::time(nullptr);
+    std::tm local{};
+    localtime_r(&now, &local);
+    if (calendar_year_ == 0 && local.tm_year >= 125) ResetCalendarToday();
+    if (calendar_year_ == 0) {
+        Label(body_, "设备时间未同步", 20, 104, 278, 35, kMuted);
+        return;
+    }
+
+    char month_text[32];
+    std::snprintf(month_text, sizeof(month_text), "%d年%d月",
+                  calendar_year_, calendar_month_);
+    SetIfChanged(calendar_month_label_, month_text);
+
+    const int first = WeekdayOfFirst(calendar_year_, calendar_month_);
+    const int days_in_month = DaysInMonth(calendar_year_, calendar_month_);
+    for (int day = 1; day <= days_in_month; ++day) {
+        const int offset = first + day - 1;
+        const int col = offset % 7;
+        const int row = offset / 7;
+        auto* cell = lv_label_create(body_);
+        lv_obj_set_pos(cell, 9 + col * 43, 89 + row * 18);
+        lv_obj_set_size(cell, 40, 18);
+        lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_color(cell, lv_color_hex(kText), 0);
+        lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_user_data(cell, reinterpret_cast<void*>(static_cast<intptr_t>(day)));
+        lv_obj_add_event_cb(cell, OnCalendarDay, LV_EVENT_CLICKED, this);
+        char day_text[4];
+        std::snprintf(day_text, sizeof(day_text), "%d", day);
+        lv_label_set_text(cell, day_text);
+        const bool picked = selected_year_ == calendar_year_ &&
+            selected_month_ == calendar_month_ && selected_day_ == day;
+        const bool today = local.tm_year + 1900 == calendar_year_ &&
+            local.tm_mon + 1 == calendar_month_ && local.tm_mday == day;
+        if (picked) {
+            lv_obj_set_style_bg_color(cell, lv_color_hex(kAccent), 0);
+            lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
+            lv_obj_set_style_text_color(cell, lv_color_hex(kBg), 0);
+        } else if (today) {
+            lv_obj_set_style_border_color(cell, lv_color_hex(kAccent), 0);
+            lv_obj_set_style_border_width(cell, 1, 0);
+        }
+    }
+    calendar_selected_label_ = Label(body_, "", 9, 207, 207, 27, kAccent);
+    Button(body_, "黄历详情", 216, 204, 99, 32, OnCalendarDetail, this);
+    calendar_details_popup_ = lv_obj_create(body_);
+    lv_obj_set_pos(calendar_details_popup_, 10, 71);
+    lv_obj_set_size(calendar_details_popup_, 300, 135);
+    StylePanel(calendar_details_popup_, kPanel, kAccent);
+    calendar_date_label_ = Label(calendar_details_popup_, "", 12, 10, 231, 25, kAccent);
+    calendar_detail_label_ = Label(calendar_details_popup_, "", 12, 43, 274, 76, kText);
+    Button(calendar_details_popup_, "", 253, 5, 39, 30, OnCalendarClose, this,
+           MATERIAL_SYMBOLS_CLOSE);
+    lv_obj_add_flag(calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
+    RefreshCalendar();
 }
 
 void PixelTouchUI::BuildPlayer() {
@@ -416,16 +480,18 @@ void PixelTouchUI::RefreshHome() {
 }
 
 void PixelTouchUI::RefreshCalendar() {
-#if CONFIG_WEATHER_DASHBOARD
-    std::time_t now = std::time(nullptr);
-    std::tm local{};
-    localtime_r(&now, &local);
-    char date[48];
-    if (local.tm_year >= 125) {
-        std::snprintf(date, sizeof(date), "%d年%d月%d日",
-                      local.tm_year + 1900, local.tm_mon + 1, local.tm_mday);
-        SetIfChanged(calendar_date_label_, date);
+    if (calendar_year_ == 0) return;
+    char date[64];
+    std::snprintf(date, sizeof(date), "%d年%d月%d日",
+                  selected_year_, selected_month_, selected_day_);
+    SetIfChanged(calendar_date_label_, date);
+    std::snprintf(date, sizeof(date), "%d月%d日", selected_month_, selected_day_);
+    SetIfChanged(calendar_selected_label_, date);
+    if (!IsSelectedToday()) {
+        SetIfChanged(calendar_detail_label_, "所选日期黄历尚未接入\n当前仅支持查询今天");
+        return;
     }
+#if CONFIG_WEATHER_DASHBOARD
     const auto info = AlmanacService::GetInstance().GetSnapshot();
     if (!info.valid) {
         SetIfChanged(calendar_detail_label_,
@@ -437,7 +503,40 @@ void PixelTouchUI::RefreshCalendar() {
     if (!info.yi.empty()) message += "\n宜 " + info.yi.front();
     if (!info.ji.empty()) message += "\n忌 " + info.ji.front();
     SetIfChanged(calendar_detail_label_, message.c_str());
+#else
+    SetIfChanged(calendar_detail_label_, "当前固件未启用黄历服务");
 #endif
+}
+
+void PixelTouchUI::ResetCalendarToday() {
+    std::time_t now = std::time(nullptr);
+    std::tm local{};
+    localtime_r(&now, &local);
+    if (local.tm_year < 125) return;
+    calendar_year_ = selected_year_ = local.tm_year + 1900;
+    calendar_month_ = selected_month_ = local.tm_mon + 1;
+    calendar_day_ = selected_day_ = local.tm_mday;
+}
+
+bool PixelTouchUI::IsSelectedToday() const {
+    std::time_t now = std::time(nullptr);
+    std::tm local{};
+    localtime_r(&now, &local);
+    return selected_year_ == local.tm_year + 1900 &&
+           selected_month_ == local.tm_mon + 1 &&
+           selected_day_ == local.tm_mday;
+}
+
+void PixelTouchUI::NavigateCalendarMonth(int delta) {
+    int year = calendar_year_;
+    int month = calendar_month_ + delta;
+    if (month < 1) { month = 12; --year; }
+    if (month > 12) { month = 1; ++year; }
+    if (year < 2000 || year > 2099) return;
+    calendar_year_ = selected_year_ = year;
+    calendar_month_ = selected_month_ = month;
+    selected_day_ = std::min(selected_day_, DaysInMonth(year, month));
+    QueueNavigate(Page::Calendar);
 }
 
 void PixelTouchUI::Refresh() {
@@ -510,4 +609,41 @@ void PixelTouchUI::OnMediaToggle(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
     Application::GetInstance().SendMediaCommand(
         self->media_status_ == "playing" ? "pause" : "resume");
+}
+
+void PixelTouchUI::OnCalendarPrevious(lv_event_t* event) {
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->NavigateCalendarMonth(-1);
+}
+void PixelTouchUI::OnCalendarNext(lv_event_t* event) {
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->NavigateCalendarMonth(1);
+}
+void PixelTouchUI::OnCalendarToday(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->ResetCalendarToday();
+    self->QueueNavigate(Page::Calendar);
+}
+void PixelTouchUI::OnCalendarDay(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    auto* obj = lv_event_get_target_obj(event);
+    int day = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(obj)));
+    if (day < 1 || day > DaysInMonth(self->calendar_year_, self->calendar_month_)) return;
+    self->selected_year_ = self->calendar_year_;
+    self->selected_month_ = self->calendar_month_;
+    self->selected_day_ = day;
+    self->QueueNavigate(Page::Calendar);
+}
+void PixelTouchUI::OnCalendarDetail(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->RefreshCalendar();
+    if (self->calendar_details_popup_ != nullptr) {
+        lv_obj_clear_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_to_index(self->calendar_details_popup_,
+            lv_obj_get_child_count(self->body_) - 1);
+    }
+}
+void PixelTouchUI::OnCalendarClose(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->calendar_details_popup_ != nullptr) {
+        lv_obj_add_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
+    }
 }
