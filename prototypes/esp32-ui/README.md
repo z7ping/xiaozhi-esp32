@@ -47,14 +47,28 @@ python scripts/check_es3c28p_ui.py --strict --runtime-tree /tmp/lvgl-ui.json
 
 V1.1 视觉没有“停止”与“播放队列”按钮。为防止已有能力退化：**长按封面打开实际队列，关闭儿童模式后长按播放键停止**；Seek 仅在服务端给出可用时长时启用。此为目前的受控交互差异，仍须真机确认长按手势不误触。
 
+## 真机重叠反馈及修复记录 · 2026-11-12
+
+用户提供四张 LCDWiki ES3C28P 真机照片，确认上一版横屏固件可显示，但**字体和滑杆实际渲染并不符合 HTML 的盒模型**。具体处理：
+
+- 首页：农历行与“你好，我是天天”相撞。两行之间增加实际高度间隙。
+- 播放器：未连接服务时标题和状态文字挤在一起；缩短断线文案，保留真实连接失败反馈；时间标记和状态行按字库实际高度留空间。
+- 万年历：星期/日期、底部日期/农历文字间隙不足；重新计算文字盒，确保行高不小于 16px。
+- 家长设置：第四行主副标题、底部提示碰撞；调整各行 Y 坐标和文字盒。
+- 亮度、音量和播放进度滑杆：原先把滑杆本身设成 22px 高，再额外加 5px knob padding，在 LVGL 9.5 中生成约 32px 高的白色块。现统一使用标准 LVGL slider，**22px 触摸容器 + 7px 轨道 + 17px knob**，显式重置主题样式与颜色。
+- 字体：官方 `font_noto_sans_basic_14_1` **实际行高为 16px**；只为 ES3C28P 横屏启用组件中现成的 14px 中文字库，保留竖屏原有 16px 版本。
+- 机器人：保留一份 LVGL 脸部对象，使用同一眨眼定时器；新增 neutral/happy/thinking/sad/speaking 表情，包含眼睛、瞳孔、脸颊与嘴形变化。
+
+新增回归防护：`test_es3c28p_ui_collisions.py` 固化上述四组标签重叠；诊断固件如果发现文本盒低于当前字体实际行高，会记录 `ES3C28P_UI: label clipped`，严格门禁会失败。暂时不能用该静态结果代替**重新编译、烧录与真机拍照确认**。
+
 ## UI Parity Matrix · 2026-11-12
 
 | 页面 | Layout / Token | Interaction / Data | 运行时 / 实机 |
 | --- | --- | --- | --- |
-| 首页 | Partial：主要坐标、圆形机器人、网络电量和 3s 浮动；字体、光效仍有差异 | Partial：真实时间/天气/农历及入口 | not-executed |
-| 语音 | Partial：圆形机器人共用；呼吸环与眨眼节拍实现，思考态旋转仍未还原 | Partial：真实 ASR、Listening/Thinking/Speaking | not-executed |
-| 播放器 | Partial：封面、时间条、圆形按钮、音量浮层 | Partial：真实媒体能力及列表/Seek/播放控制 | not-executed |
-| 万年历 | Partial：7 列网格/详情弹层按原型重排 | Partial：翻月保持所选日期，农历从真实 AlmanacService 获取 | not-executed |
-| 家长设置 | Partial：四行设置与滑杆/开关 | Partial：持久化儿童模式、设备亮度/音量 | not-executed |
+| 首页 | Partial：字体行高与提示语间距已修，机器人浮动与表情；未复测 | Partial：真实时间/天气/农历及入口 | pending reflash |
+| 语音 | Partial：机器人眨眼和五种表情，呼吸环实现；思考态旋转仍未还原 | Partial：实际状态映射 | pending reflash |
+| 播放器 | Partial：缩短断线文字、7px 轨道+触摸容器；未复测 | Partial：真实媒体能力及列表/Seek/播放控制 | pending reflash |
+| 万年历 | Partial：星期、日期、农历按 16px 实际行高隔开；未复测 | Partial：实际黄历服务 | pending reflash |
+| 家长设置 | Partial：第四行文字分层、亮度音量小轨道；未复测 | Partial：真实设备亮度与音量 | pending reflash |
 
 **当前未达到“1:1 通过”或“固件功能验收通过”。** 不得因浏览器基线通过而擅自更改本状态。
