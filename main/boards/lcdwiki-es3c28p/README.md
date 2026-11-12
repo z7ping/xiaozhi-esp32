@@ -147,6 +147,13 @@ python scripts/build.py lcdwiki-es3c28p --name lcdwiki-es3c28p
 python3 scripts/build.py lcdwiki-es3c28p --name lcdwiki-es3c28p-landscape-diag
 ```
 
+可以保存 USB 串口日志（例如 `idf.py monitor | tee es3c28p.log`，或使用其他串口终端），再生成分状态报告：
+
+```bash
+python3 scripts/es3c28p_resource_report.py es3c28p.log
+python3 -m unittest discover -s scripts/tests -p 'test_es3c28p_resource_report.py' -v
+```
+
 日志字段：`state`（设备状态）、`internal_free/internal_min/internal_largest`（内部 8 位 RAM）、`psram_free/psram_min/psram_largest`（外部 8 位 PSRAM），单位均为字节。`*_min` 是启动以来的最低空闲量，非当前状态瞬时值；`*_largest` 为当前最大连续可分配块。
 
 真机测试顺序：冷启动稳定待机 1 分钟 → 触摸/屏幕切换 → 唤醒并连续对话 → 播放 Jellyfin 故事或儿歌并尝试打断 → 切换天气及黄历数据 → 再次待机。记录各阶段采样与音频异常；对比上一个阶段的最大连续块和历史最低空闲量。完整 UI 与多媒体并发上线之前，必须先取得这组真机数据。
