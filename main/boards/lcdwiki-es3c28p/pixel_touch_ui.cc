@@ -504,12 +504,30 @@ void PixelTouchUI::RefreshCalendar() {
     SetIfChanged(calendar_date_label_, date);
     std::snprintf(date, sizeof(date), "%d月%d日", selected_month_, selected_day_);
     SetIfChanged(calendar_selected_label_, date);
-    if (!IsSelectedToday()) {
-        SetIfChanged(calendar_detail_label_, "所选日期黄历尚未接入\n当前仅支持查询今天");
-        return;
-    }
 #if CONFIG_WEATHER_DASHBOARD
-    const auto info = AlmanacService::GetInstance().GetSnapshot();
+    AlmanacSnapshot info;
+    if (IsSelectedToday()) {
+        info = AlmanacService::GetInstance().GetSnapshot();
+    } else {
+        const auto lookup = AlmanacService::GetInstance().GetDateResult();
+        if (lookup.year != selected_year_ || lookup.month != selected_month_ ||
+            lookup.day != selected_day_) {
+            SetIfChanged(calendar_detail_label_, "点击详情查询选中日期");
+            return;
+        }
+        if (lookup.loading) {
+            SetIfChanged(calendar_detail_label_, "正在查询选中日期...");
+            return;
+        }
+        if (!lookup.ready) {
+            SetIfChanged(calendar_detail_label_,
+                lookup.quota_exceeded ? "日历 API 今日配额已用完" :
+                lookup.credentials_invalid ? "万年历密钥无效" :
+                "查询失败，请检查网络和密钥");
+            return;
+        }
+        info = lookup.snapshot;
+    }
     if (!info.valid) {
         SetIfChanged(calendar_detail_label_,
                      info.no_credentials ? "请先配置万年历密钥" : "今日黄历暂无数据");
@@ -579,6 +597,9 @@ void PixelTouchUI::Refresh() {
         // Five-second state requests are tiny JSON messages over the existing
         // control transport. Playback/audio buffers remain on the Go server.
         Application::GetInstance().SendMediaCommand("get_state");
+    } else if (page_ == Page::Calendar && calendar_details_popup_ != nullptr &&
+               !lv_obj_has_flag(calendar_details_popup_, LV_OBJ_FLAG_HIDDEN)) {
+        RefreshCalendar(); // Read the one-slot asynchronous date lookup result.
     } else if (++refresh_ticks_ >= 6) {
         refresh_ticks_ = 0;
         if (page_ == Page::Home) RefreshHome();
@@ -669,6 +690,12 @@ void PixelTouchUI::OnCalendarDay(lv_event_t* event) {
 }
 void PixelTouchUI::OnCalendarDetail(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+#if CONFIG_WEATHER_DASHBOARD
+    if (!self->IsSelectedToday()) {
+        AlmanacService::GetInstance().RequestDate(
+            self->selected_year_, self->selected_month_, self->selected_day_);
+    }
+#endif
     self->RefreshCalendar();
     if (self->calendar_details_popup_ != nullptr) {
         lv_obj_clear_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
