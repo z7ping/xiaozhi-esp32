@@ -443,7 +443,10 @@ void PixelTouchUI::SetMediaState(const char* state, const char* title,
 }
 
 void PixelTouchUI::SetMediaPlaylist(int offset, const std::vector<std::string>& titles) {
-    playlist_offset_ = offset < 0 ? 0 : offset;
+    // Ignore stale responses after a rapid page change or closing the overlay.
+    if (page_ != Page::Player || playlist_panel_ == nullptr ||
+        lv_obj_has_flag(playlist_panel_, LV_OBJ_FLAG_HIDDEN) ||
+        offset != playlist_offset_) return;
     playlist_count_ = std::min(static_cast<int>(titles.size()), 6);
     for (int i = 0; i < 6; ++i) {
         playlist_titles_[i] = i < playlist_count_ ? titles[i] : "";
@@ -467,10 +470,11 @@ void PixelTouchUI::UpdatePlaylist() {
             continue;
         }
         lv_obj_clear_flag(button, LV_OBJ_FLAG_HIDDEN);
-        char caption[140];
-        std::snprintf(caption, sizeof(caption), "%d. %.100s",
-                      playlist_offset_ + i + 1, playlist_titles_[i].c_str());
-        SetIfChanged(lv_obj_get_child(button, 0), caption);
+        // Let the LVGL label clip visually instead of slicing UTF-8 bytes,
+        // which can corrupt a Chinese character mid-sequence.
+        std::string caption = std::to_string(playlist_offset_ + i + 1) +
+                              ". " + playlist_titles_[i];
+        SetIfChanged(lv_obj_get_child(button, 0), caption.c_str());
         lv_obj_set_user_data(button,
             reinterpret_cast<void*>(static_cast<intptr_t>(playlist_offset_ + i + 1)));
         const bool selected = media_current_index_ == playlist_offset_ + i;
@@ -725,6 +729,15 @@ void PixelTouchUI::NavigateCalendarMonth(int delta) {
 
 void PixelTouchUI::Refresh() {
     if (lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) return;
+    // If the user opened calendar before SNTP, rebuild the month once
+    // the clock is ready. A failed first read must not leave an empty page.
+    if (page_ == Page::Calendar && calendar_year_ == 0) {
+        ResetCalendarToday();
+        if (calendar_year_ != 0) {
+            Navigate(Page::Calendar);
+        }
+        return;
+    }
     if (page_ == Page::Player) {
         // Five-second state requests are tiny JSON messages over the existing
         // control transport. Playback/audio buffers remain on the Go server.
