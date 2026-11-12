@@ -105,6 +105,20 @@ void Protocol::SendMcpMessage(const std::string& payload) {
     SendText(message);
 }
 
+void Protocol::SendMediaControl(const std::string& action) {
+    cJSON* root = cJSON_CreateObject();
+    if (root == nullptr) return;
+    cJSON_AddStringToObject(root, "type", "media");
+    cJSON_AddStringToObject(root, "session_id", session_id_.c_str());
+    cJSON_AddStringToObject(root, "state", action.c_str());
+    char* encoded = cJSON_PrintUnformatted(root);
+    if (encoded != nullptr) {
+        SendText(encoded);
+        cJSON_free(encoded);
+    }
+    cJSON_Delete(root);
+}
+
 bool Protocol::IsTimeout() const {
     const int kTimeoutSeconds = 120;
     auto now = std::chrono::steady_clock::now();
