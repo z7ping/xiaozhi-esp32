@@ -110,7 +110,7 @@ void SetIfChanged(lv_obj_t* label, const char* value) {
 PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
     Settings settings("pixel_ui");
     child_mode_ = settings.GetBool("child_mode", true);
-    twilight_ = settings.GetBool("twilight", false);
+    twilight_ = false;  // Approved V1.1 is single-palette; retain legacy NVS key.
     root_ = lv_obj_create(screen);
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, 320, 240);
@@ -747,69 +747,65 @@ void PixelTouchUI::UpdatePlayer() {
 
 void PixelTouchUI::BuildSettings() {
     BuildHeader("家长设置", true);
-    auto* settings_panel = lv_obj_create(body_);
-    lv_obj_set_pos(settings_panel, 9, 37);
-    lv_obj_set_size(settings_panel, 302, 197);
-    StylePanel(settings_panel, kBg, kBorder);
-    for (int y : {84, 132, 181}) {
-        auto* separator = lv_obj_create(body_);
-        lv_obj_remove_style_all(separator);
-        lv_obj_set_pos(separator, 18, y);
-        lv_obj_set_size(separator, 284, 1);
-        lv_obj_set_style_bg_color(separator, lv_color_hex(kBorder), 0);
-        lv_obj_set_style_bg_opa(separator, LV_OPA_COVER, 0);
-        lv_obj_clear_flag(separator, LV_OBJ_FLAG_CLICKABLE);
+    Label(body_, "本机", 273, 9, 32, 16, 0x829fb7);
+
+    // V1.1 rows: x=14..306, top=42, each 44px high; no enclosing card.
+    for (int i = 1; i <= 4; ++i) {
+        auto* divider = lv_obj_create(body_);
+        lv_obj_remove_style_all(divider);
+        lv_obj_set_pos(divider, 14, 42 + i * 44 - 1);
+        lv_obj_set_size(divider, 292, 1);
+        lv_obj_set_style_bg_color(divider, lv_color_hex(0x22384e), 0);
+        lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
+        lv_obj_clear_flag(divider, LV_OBJ_FLAG_CLICKABLE);
     }
-    Label(body_, "儿童模式", 14, 40, 140, 25);
-    Label(body_, "减少误触操作", 14, 61, 140, 18, kMuted);
+    Label(body_, "儿童模式", 14, 51, 160, 18);
+    Label(body_, "减少误触和复杂操作", 14, 68, 190, 14, 0x829eb5);
     child_mode_switch_ = lv_switch_create(body_);
-    lv_obj_set_pos(child_mode_switch_, 258, 47);
-    lv_obj_set_size(child_mode_switch_, 47, 25);
+    lv_obj_set_pos(child_mode_switch_, 271, 54);
+    lv_obj_set_size(child_mode_switch_, 32, 19);
+    lv_obj_set_style_radius(child_mode_switch_, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(child_mode_switch_, lv_color_hex(0x34445a), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(child_mode_switch_, lv_color_hex(0x4caea9), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(child_mode_switch_, lv_color_hex(0xffffff), LV_PART_KNOB);
     if (child_mode_) lv_obj_add_state(child_mode_switch_, LV_STATE_CHECKED);
     lv_obj_add_event_cb(child_mode_switch_, OnChildModeChanged, LV_EVENT_VALUE_CHANGED, this);
 
-    Label(body_, "显示亮度", 14, 92, 134, 24);
-    Label(body_, "默认音量", 14, 140, 134, 24);
+    Label(body_, "屏幕亮度", 14, 96, 150, 20);
+    Label(body_, "默认音量", 14, 140, 150, 20);
     brightness_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(brightness_slider_, 151, 97);
-    lv_obj_set_size(brightness_slider_, 107, 15);
+    lv_obj_set_pos(brightness_slider_, 184, 96);
+    lv_obj_set_size(brightness_slider_, 120, 22);
+    // LCD PWM cannot achieve the HTML demo's 110% CSS brightness.
     lv_slider_set_range(brightness_slider_, 10, 100);
     if (auto* backlight = Board::GetInstance().GetBacklight()) {
         lv_slider_set_value(brightness_slider_, backlight->brightness(), LV_ANIM_OFF);
     }
-
     volume_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(volume_slider_, 151, 145);
-    lv_obj_set_size(volume_slider_, 107, 15);
+    lv_obj_set_pos(volume_slider_, 184, 140);
+    lv_obj_set_size(volume_slider_, 120, 22);
     lv_slider_set_range(volume_slider_, 0, 100);
     if (auto* codec = Board::GetInstance().GetAudioCodec()) {
         lv_slider_set_value(volume_slider_, codec->output_volume(), LV_ANIM_OFF);
     }
-
     for (auto* slider : {brightness_slider_, volume_slider_}) {
-        lv_obj_set_style_bg_color(slider, lv_color_hex(kBorder), LV_PART_MAIN);
+        lv_obj_set_style_bg_color(slider, lv_color_hex(0x2e5066), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(slider, lv_color_hex(kAccent), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_INDICATOR);
-        lv_obj_set_style_bg_color(slider, lv_color_hex(kAccent), LV_PART_KNOB);
-        lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_KNOB);
-        lv_obj_set_style_radius(slider, 0, LV_PART_MAIN);
-        lv_obj_set_style_radius(slider, 0, LV_PART_INDICATOR);
-        lv_obj_set_style_radius(slider, 0, LV_PART_KNOB);
-        lv_obj_set_style_pad_all(slider, 4, LV_PART_KNOB);
+        lv_obj_set_style_bg_color(slider, lv_color_hex(0x7be7d7), LV_PART_INDICATOR);
+        lv_obj_set_style_bg_color(slider, lv_color_hex(0xa4f9eb), LV_PART_KNOB);
+        lv_obj_set_style_border_color(slider, lv_color_hex(0x83a7b9), LV_PART_MAIN);
+        lv_obj_set_style_border_width(slider, 1, LV_PART_MAIN);
+        lv_obj_set_style_radius(slider, 1, LV_PART_MAIN);
+        lv_obj_set_style_radius(slider, 2, LV_PART_KNOB);
+        lv_obj_set_style_pad_all(slider, 5, LV_PART_KNOB);
         lv_obj_add_event_cb(slider, OnSliderChange, LV_EVENT_VALUE_CHANGED, this);
         lv_obj_add_event_cb(slider, OnSliderRelease, LV_EVENT_RELEASED, this);
     }
-    brightness_value_ = Label(body_, "", 266, 89, 50, 27, kAccent);
-    volume_value_ = Label(body_, "", 266, 137, 50, 27, kAccent);
-    Label(body_, "暮光配色", 14, 188, 140, 25);
-    Label(body_, "紫色科技主题", 14, 209, 175, 20, kMuted);
-    twilight_switch_ = lv_switch_create(body_);
-    lv_obj_set_pos(twilight_switch_, 258, 192);
-    lv_obj_set_size(twilight_switch_, 47, 25);
-    if (twilight_) lv_obj_add_state(twilight_switch_, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(twilight_switch_, OnTwilightChanged, LV_EVENT_VALUE_CHANGED, this);
-    UpdateSliderValues();
+    Label(body_, "当前布局", 14, 184, 120, 18);
+    Label(body_, "320 × 240 · 横屏", 14, 200, 164, 14, 0x829eb5);
+    Label(body_, "V1.1", 271, 189, 36, 18, 0x8bd7c7);
+    Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
+          15, 212, 220, 16, 0x829eb5);
 }
 
 void PixelTouchUI::RefreshHome() {
