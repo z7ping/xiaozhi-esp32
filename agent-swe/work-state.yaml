@@ -2,59 +2,66 @@ schema_version: "0.2"
 status: active
 
 goal:
-  summary: "在资源实测可控的前提下，将 ES3C28P 交互 UI 落地到 LCDWiki ESP32-S3"
+  summary: "在 LCDWiki ES3C28P 横屏固件上实现 V2.4 科技像素触摸 UI，并保持原音频链路和低资源开销"
 
 phase:
-  type: verification
-  summary: "P0 资源基线：诊断构建已提交，待真机数据验证"
+  type: implementation
+  summary: "P1 核心触摸页面代码已提交；等待编译/真机验证，继续补齐服务端播放器与日历"
 
 scope:
   include:
-    - "ES3C28P 横屏诊断构建与运行时内存观测"
-    - "保留已确认的 V2.4 科技像素交互原型作为后续 UI 目标"
+    - "P0 资源基线与硬件实测"
+    - "P1 首页、像素机器人共享、触摸导航、语音入口"
+    - "P2 设置亮度/音量、天气/今日农历展示"
+    - "后续播放器状态与触摸控制的 Go 服务端增量对接"
   exclude:
-    - "在取得真机资源基线前全面替换现有待机 UI"
-    - "本阶段修改 Go 服务端与 Jellyfin 播放器"
-    - "修改其他开发板与音频传输协议"
+    - "修改其他板卡硬件引脚"
+    - "重写 Jellyfin 播放与音频流链路"
 
 constraints:
   required:
-    - "最新像素分支是当前开发基线，写入前刷新远程仓库事实"
-    - "优先复用已有 LVGL、音频、天气、黄历和服务端播放器"
-    - "诊断构建不得在普通版本中增加持续资源开销"
+    - "基于最新像素分支与当前已提交诊断分支分层开发"
+    - "复用已有 LVGL、Material Symbols、语音、天气和黄历服务"
+    - "真机验证 RAM/PSRAM、最大可分配块及对话和媒体并发"
     - "不等待 CI 或 Actions 完成"
   forbidden:
     - "直接修改 main"
-    - "未经用户明确要求合并或发布固件"
+    - "未经用户明确授权合并和发布"
+    - "使用模拟播放状态冒充真实服务端状态"
   frozen:
-    - "V2.4 交互原型不因服务端缺少 Seek 而删改"
-    - "Jellyfin 媒体搜索与播放控制继续由 Go 服务端承担"
+    - "V2.4 HTML 原型内容不改"
+    - "Go 服务端为 Jellyfin 播放唯一权威状态源"
   deferred:
-    - action: "完整 LVGL 五屏与播放控制"
-      until: "P0 真机资源与音频并发稳定性完成评估"
+    - action: "宣布 V2.4 全功能完成和真机性能达标"
+      until: "完成 ESP-IDF 编译、全部功能与实机资源验证"
 
 acceptance:
-  - "横屏诊断构建能够读取内部 RAM 和 PSRAM 的空闲、历史低水位、最大连续块"
-  - "真机覆盖待机、语音对话、Jellyfin 播放、触摸及天气刷新场景"
-  - "观测全程无重启、音频异常或明显内存持续下降"
-  - "记录当前尚无真机测试数据，不能将静态代码检查当作测量结果"
+  - "首页显示真实时间/天气/农历，触摸能切换页面及唤醒对话"
+  - "亮度、音量滑杆真实生效并持久化"
+  - "旧 DashboardUI 不在像素横屏版本中重复分配"
+  - "服务端播放器同步、日历日期选择和剩余设置按 V2.4 原型逐项补齐"
+  - "真实设备上长时间运行无重启、音频异常或明显内存持续下降"
 
 progress:
   current:
-    - "诊断分支代码已提交；待做 ESP-IDF 构建及真机资源采样"
+    - "P0 PR #2 已提交资源诊断代码，缺真机日志"
+    - "P1 PR #3 已提交轻量 LVGL 触摸 UI/导航/设置、复用机器人并移除旧仪表盘常驻内存"
   next:
-    - "编译 lcdwiki-es3c28p-landscape-diag 并烧录 ESP32-S3"
-    - "保存串口 ES3C28P_RES 日志，分析最低内存和最大连续块"
-    - "通过资源门禁后推进 LVGL 核心 UI 和触摸交互"
+    - "使用 ESP-IDF 编译并烧录 lcdwiki-es3c28p-landscape-diag"
+    - "验证反复触摸导航与对话恢复，保存内存/音频并发日志"
+    - "将 Go 服务端已有 MediaPlayerState 映射到 ESP32 播放器 UI"
+    - "补齐万年历日期选择、儿童模式与主题配置"
 
 decisions:
-  - "资源基线优先于完整交互页面实现"
-  - "原有普通横屏构建保持默认关闭资源采样"
+  - "先推进核心 UI 代码，同时保留 P0 真机资源门禁"
+  - "页面按需重建，机器人只保留一套 LVGL 对象"
+  - "服务端能力未接通之前显示真实未连接状态，不填假数据"
 
 work_items:
   pull_requests:
     - 2
+    - 3
 
 repository:
   provider: github
-  branch: "feat/es3c28p-resource-baseline"
+  branch: "feat/es3c28p-touch-ui"
