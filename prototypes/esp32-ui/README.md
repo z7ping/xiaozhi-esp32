@@ -38,8 +38,8 @@ python scripts/check_es3c28p_ui.py --strict --runtime-tree /path/to/lvgl-runtime
 
 | 页面 | Layout/Token | Interaction | Real data | LVGL runtime | Physical device |
 | --- | --- | --- | --- | --- | --- |
-| 首页 | Missing | Partial | Aligned（旧实现） | not-executed | Pending |
-| 语音 | Missing | Missing（独立页面） | Aligned（原链路） | not-executed | Pending |
+| 首页 | Partial（布局迁移，字体/图形待对齐） | Partial | Aligned（沿用现有服务） | not-executed | Pending |
+| 语音 | Partial（独立页面已接入，动效待实现） | Partial（真实状态，缺思考态） | Partial（原链路） | not-executed | Pending |
 | 播放器 | Missing | Partial（旧实现） | Aligned（Go 分支支持时） | not-executed | Pending |
 | 万年历 | Missing | Partial | Aligned（旧服务） | not-executed | Pending |
 | 设置 | Missing | Partial | Aligned（旧设备接口） | not-executed | Pending |
