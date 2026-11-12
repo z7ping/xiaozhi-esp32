@@ -25,6 +25,25 @@ I (130) ES3C28P_UI: state=voice.listening anchor=voice-title x=8 y=151 w=304 h=2
         self.assertEqual(count, 0)
         self.assertEqual(result["states"], {})
 
+    def test_capture_boundary_discards_stale_geometry(self):
+        log = """ES3C28P_UI: state=home begin=1
+ES3C28P_UI: state=home anchor=.clock x=17 y=52 w=192 h=54
+ES3C28P_UI: state=home anchor=@story x=13 y=185 w=93 h=43
+ES3C28P_UI: state=home begin=1
+ES3C28P_UI: state=home anchor=.clock x=18 y=52 w=192 h=54
+"""
+        result, count = parse(log)
+        self.assertEqual(count, 3)
+        self.assertEqual(result["capture_format"], 2)
+        self.assertEqual(result["states"]["home"]["anchors"],
+                         {".clock": [18, 52, 192, 54]})
+
+    def test_missing_boundaries_cannot_be_strict_evidence(self):
+        log = "ES3C28P_UI: state=home anchor=.clock x=17 y=52 w=192 h=54"
+        result, count = parse(log)
+        self.assertEqual(count, 1)
+        self.assertEqual(result["capture_format"], 1)
+
     def test_latest_measurement_wins(self):
         log = """ES3C28P_UI: state=home anchor=.clock x=17 y=52 w=192 h=62
 ES3C28P_UI: state=home anchor=.clock x=16 y=52 w=192 h=62
