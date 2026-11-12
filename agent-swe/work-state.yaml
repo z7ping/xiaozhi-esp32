@@ -20,7 +20,7 @@ scope:
 
 constraints:
   required:
-    - "基于最新像素分支与当前已提交诊断分支分层开发"
+    - "只维护固件开发分支 feat/es3c28p-touch-ui，直接以 codex/es3c28p-pixel-robot 为基线"
     - "复用已有 LVGL、Material Symbols、语音、天气和黄历服务"
     - "真机验证 RAM/PSRAM、最大可分配块及对话和媒体并发"
     - "不等待 CI 或 Actions 完成"
@@ -44,7 +44,7 @@ acceptance:
 
 progress:
   current:
-    - "P0 PR #2 已提交资源诊断代码，缺真机日志"
+    - "资源诊断代码已整合进固件 PR #3；原 PR #2 已关闭，仍缺真机日志"
     - "固件 PR #3 已提交真实 LVGL 触摸 UI、设置、媒体状态同步与播放控制接口；缺编译/真机验证"
     - "Go 服务端 PR #3 已提交设备媒体消息处理与状态回传；缺 Go 测试和联调"
   next:
@@ -58,10 +58,10 @@ decisions:
   - "页面按需重建，机器人只保留一套 LVGL 对象"
   - "服务端播放器状态通过现有控制通道获取；只在播放器可见时低频轮询"
   - "Seek、总时长、完整列表尚未实现，不填充模拟数据"
+  - "同一固件分支承载资源诊断、触摸 UI 与媒体控制；Go 服务端独立单分支"
 
 work_items:
   pull_requests:
-    - 2
     - 3
 
 repository:
