@@ -593,13 +593,13 @@ void PixelTouchUI::BuildHome() {
 
     auto* indicator = lv_obj_create(body_);
     lv_obj_remove_style_all(indicator);
-    lv_obj_set_pos(indicator, 18, 165);
+    lv_obj_set_pos(indicator, 18, 170);
     lv_obj_set_size(indicator, 7, 7);
     lv_obj_set_style_radius(indicator, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(indicator, lv_color_hex(0x70dfcb), 0);
     lv_obj_set_style_bg_opa(indicator, LV_OPA_COVER, 0);
     lv_obj_clear_flag(indicator, LV_OBJ_FLAG_CLICKABLE);
-    Label(body_, "你好，我是天天", 31, 160, 145, 18, kMuted);
+    Label(body_, "你好，我是天天", 31, 165, 145, 16, kMuted);
 
     auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this);
     lv_obj_align(lv_obj_get_child(story, 0), LV_ALIGN_LEFT_MID, 30, 0);
@@ -768,7 +768,7 @@ void PixelTouchUI::BuildCalendar() {
     lv_obj_add_flag(footer, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(footer, OnCalendarDetail, LV_EVENT_CLICKED, this);
     calendar_selected_label_ = Label(footer, "", 11, 2, 180, 16, kText);
-    calendar_lunar_label_ = Label(footer, "农历待查询", 11, 18, 178, 13, 0x94abbf);
+    calendar_lunar_label_ = Label(footer, "农历待查询", 11, 18, 178, 14, 0x94abbf);
     Label(footer, "查看黄历详情 ›", 195, 8, 92, 19, 0x80dfd2);
 
     calendar_details_popup_ = lv_obj_create(body_);
@@ -986,10 +986,10 @@ void PixelTouchUI::UpdatePlayer() {
         else lv_obj_add_state(control, LV_STATE_DISABLED);
     }
     if (!supported) {
-        SetIfChanged(player_title_, "请通过语音播放故事或儿歌");
+        SetIfChanged(player_title_, "请先语音播放");
         SetIfChanged(player_status_, connection == MediaControlState::kDisconnected
-                                       ? "未连接对话服务"
-                                       : "服务端未声明触摸播放控制");
+                                       ? "服务未连接"
+                                       : "当前服务不支持触摸控制");
         SetIfChanged(player_position_, "--:--");
         SetIfChanged(player_duration_, "--:--");
         if (player_seek_slider_ != nullptr) {
@@ -1058,8 +1058,8 @@ void PixelTouchUI::BuildSettings() {
         lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
         lv_obj_clear_flag(divider, LV_OBJ_FLAG_CLICKABLE);
     }
-    Label(body_, "儿童模式", 14, 51, 160, 18);
-    Label(body_, "减少误触和复杂操作", 14, 68, 190, 14, 0x829eb5);
+    Label(body_, "儿童模式", 14, 50, 160, 17);
+    Label(body_, "减少误触和复杂操作", 14, 68, 190, 15, 0x829eb5);
     child_mode_switch_ = lv_switch_create(body_);
     lv_obj_set_pos(child_mode_switch_, 271, 54);
     lv_obj_set_size(child_mode_switch_, 32, 19);
@@ -1090,7 +1090,7 @@ void PixelTouchUI::BuildSettings() {
     Label(body_, "320 × 240 · 横屏", 14, 200, 164, 14, 0x829eb5);
     Label(body_, "V1.1", 271, 189, 36, 18, 0x8bd7c7);
     settings_foot_ = Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
-                           15, 212, 220, 16, 0x829eb5);
+                           15, 220, 220, 15, 0x829eb5);
 }
 
 void PixelTouchUI::RefreshHome() {
