@@ -242,6 +242,11 @@ void PixelRobotDisplay::ShowDashboard() {
     DisplayLockGuard lock(this);
     // Preserve existing weather/almanac services; replace only the idle view.
     touch_ui_->Show(robot_area_, container_);
+    // Keep the existing low-battery warning above the idle touch surface.
+    if (low_battery_popup_ != nullptr) {
+        auto* screen = lv_obj_get_parent(low_battery_popup_);
+        lv_obj_move_to_index(low_battery_popup_, lv_obj_get_child_count(screen) - 1);
+    }
 }
 
 void PixelRobotDisplay::HideDashboard() {
