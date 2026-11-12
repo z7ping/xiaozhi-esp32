@@ -372,7 +372,9 @@ void PixelTouchUI::BuildPlayer() {
     Button(body_, "下一首", 214, 148, 98, 38, OnMediaNext, this,
            MATERIAL_SYMBOLS_SKIP_NEXT);
     BuildBackButton();
-    Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this, MATERIAL_SYMBOLS_STOP);
+    if (!child_mode_) {
+        Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this, MATERIAL_SYMBOLS_STOP);
+    }
 }
 
 void PixelTouchUI::SetMediaState(const char* state, const char* title,
@@ -413,24 +415,32 @@ void PixelTouchUI::UpdatePlayer() {
 }
 
 void PixelTouchUI::BuildSettings() {
-    BuildHeader("家长设置");
+    BuildHeader("家长设置", true);
+    Label(body_, "儿童模式", 14, 40, 140, 25);
+    Label(body_, "减少误触操作", 14, 61, 140, 18, kMuted);
+    child_mode_switch_ = lv_switch_create(body_);
+    lv_obj_set_pos(child_mode_switch_, 258, 47);
+    lv_obj_set_size(child_mode_switch_, 47, 25);
+    if (child_mode_) lv_obj_add_state(child_mode_switch_, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(child_mode_switch_, OnChildModeChanged, LV_EVENT_VALUE_CHANGED, this);
 
-    Label(body_, "显示亮度", 14, 61, 131, 26);
-    Label(body_, "默认音量", 14, 119, 131, 26);
-
+    Label(body_, "显示亮度", 14, 92, 134, 24);
+    Label(body_, "默认音量", 14, 140, 134, 24);
     brightness_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(brightness_slider_, 153, 62);
-    lv_obj_set_size(brightness_slider_, 105, 15);
+    lv_obj_set_pos(brightness_slider_, 151, 97);
+    lv_obj_set_size(brightness_slider_, 107, 15);
     lv_slider_set_range(brightness_slider_, 10, 100);
-    lv_slider_set_value(brightness_slider_, Board::GetInstance().GetBacklight()->brightness(),
-                        LV_ANIM_OFF);
+    if (auto* backlight = Board::GetInstance().GetBacklight()) {
+        lv_slider_set_value(brightness_slider_, backlight->brightness(), LV_ANIM_OFF);
+    }
 
     volume_slider_ = lv_slider_create(body_);
-    lv_obj_set_pos(volume_slider_, 153, 120);
-    lv_obj_set_size(volume_slider_, 105, 15);
+    lv_obj_set_pos(volume_slider_, 151, 145);
+    lv_obj_set_size(volume_slider_, 107, 15);
     lv_slider_set_range(volume_slider_, 0, 100);
-    lv_slider_set_value(volume_slider_, Board::GetInstance().GetAudioCodec()->output_volume(),
-                        LV_ANIM_OFF);
+    if (auto* codec = Board::GetInstance().GetAudioCodec()) {
+        lv_slider_set_value(volume_slider_, codec->output_volume(), LV_ANIM_OFF);
+    }
 
     for (auto* slider : {brightness_slider_, volume_slider_}) {
         lv_obj_set_style_bg_color(slider, lv_color_hex(kBorder), LV_PART_MAIN);
@@ -446,11 +456,16 @@ void PixelTouchUI::BuildSettings() {
         lv_obj_add_event_cb(slider, OnSliderChange, LV_EVENT_VALUE_CHANGED, this);
         lv_obj_add_event_cb(slider, OnSliderRelease, LV_EVENT_RELEASED, this);
     }
-    brightness_value_ = Label(body_, "", 266, 57, 49, 29, kAccent);
-    volume_value_ = Label(body_, "", 266, 115, 49, 29, kAccent);
-    Label(body_, "松开滑块后保存设置", 14, 167, 292, 25, kMuted);
+    brightness_value_ = Label(body_, "", 266, 89, 50, 27, kAccent);
+    volume_value_ = Label(body_, "", 266, 137, 50, 27, kAccent);
+    Label(body_, "暮光配色", 14, 188, 140, 25);
+    Label(body_, "紫色科技主题", 14, 209, 175, 20, kMuted);
+    twilight_switch_ = lv_switch_create(body_);
+    lv_obj_set_pos(twilight_switch_, 258, 192);
+    lv_obj_set_size(twilight_switch_, 47, 25);
+    if (twilight_) lv_obj_add_state(twilight_switch_, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(twilight_switch_, OnTwilightChanged, LV_EVENT_VALUE_CHANGED, this);
     UpdateSliderValues();
-    BuildBackButton();
 }
 
 void PixelTouchUI::RefreshHome() {
@@ -646,4 +661,39 @@ void PixelTouchUI::OnCalendarClose(lv_event_t* event) {
     if (self->calendar_details_popup_ != nullptr) {
         lv_obj_add_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+void PixelTouchUI::ApplyPalette() {
+    // Recolor only explicitly styled panels. Labels, calendar selection
+    // highlights and the existing robot sprite retain their own colors.
+    auto recolor = [this](auto&& walk, lv_obj_t* object) -> void {
+        if (object == robot_area_) return;
+        const uint32_t current = lv_color_to_u32(lv_obj_get_style_bg_color(object, LV_PART_MAIN));
+        if (current == kBg || current == kTwilightBg) {
+            lv_obj_set_style_bg_color(object, lv_color_hex(twilight_ ? kTwilightBg : kBg), 0);
+        } else if (current == kPanel || current == kTwilightPanel) {
+            lv_obj_set_style_bg_color(object, lv_color_hex(twilight_ ? kTwilightPanel : kPanel), 0);
+            lv_obj_set_style_border_color(object,
+                lv_color_hex(twilight_ ? kTwilightBorder : kBorder), 0);
+        }
+        for (uint32_t index = 0; index < lv_obj_get_child_count(object); ++index) {
+            walk(walk, lv_obj_get_child(object, index));
+        }
+    };
+    recolor(recolor, root_);
+}
+
+void PixelTouchUI::OnChildModeChanged(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->child_mode_ = lv_obj_has_state(self->child_mode_switch_, LV_STATE_CHECKED);
+    Settings settings("pixel_ui", true);
+    settings.SetBool("child_mode", self->child_mode_);
+}
+
+void PixelTouchUI::OnTwilightChanged(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    self->twilight_ = lv_obj_has_state(self->twilight_switch_, LV_STATE_CHECKED);
+    Settings settings("pixel_ui", true);
+    settings.SetBool("twilight", self->twilight_);
+    self->ApplyPalette();
 }
