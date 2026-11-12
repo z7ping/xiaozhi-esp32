@@ -43,6 +43,8 @@ def implementation_check(baseline, runtime_path, required_states=None):
         errors.append(f"runtime tree does not exist: {runtime_path}")
         return errors
     runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+    if runtime.get("capture_format") != 2:
+        errors.append("LVGL capture format outdated or undelimited; no reliable geometry evidence")
     if runtime.get("viewport") != baseline["viewport"]:
         errors.append("LVGL runtime viewport differs from 320x240 baseline")
     for name in required_states or []:
