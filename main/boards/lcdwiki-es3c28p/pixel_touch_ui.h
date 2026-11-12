@@ -69,6 +69,7 @@ private:
     static void OnMediaToggle(lv_event_t* event);
     static void OnMediaNext(lv_event_t* event);
     static void OnMediaStop(lv_event_t* event);
+    static void OnMediaPressed(lv_event_t* event);
     static void OnMediaSeek(lv_event_t* event);
     static void OnPlaylistOpen(lv_event_t* event);
     static void OnPlaylistClose(lv_event_t* event);
@@ -87,6 +88,7 @@ private:
     Page queued_page_ = Page::Home;
     bool media_available_ = false;
     bool player_song_mode_ = false;
+    bool player_stop_long_press_ = false;
     bool voice_waiting_response_ = false;
     uint32_t media_generation_ = 0;
     std::string media_status_;
