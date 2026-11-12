@@ -51,6 +51,7 @@ private:
     void ApplyPalette();
     void UpdateSliderValues();
 
+    static void OnGesture(lv_event_t* event);
     static void OnSettings(lv_event_t* event);
     static void OnHome(lv_event_t* event);
     static void OnCalendar(lv_event_t* event);
@@ -127,6 +128,7 @@ private:
     lv_obj_t* calendar_selected_label_ = nullptr;
     lv_obj_t* calendar_details_popup_ = nullptr;
     lv_obj_t* child_mode_switch_ = nullptr;
+    lv_obj_t* settings_foot_ = nullptr;
     lv_obj_t* twilight_switch_ = nullptr;
     lv_obj_t* brightness_slider_ = nullptr;
     lv_obj_t* volume_slider_ = nullptr;
