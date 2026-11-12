@@ -21,6 +21,17 @@ constexpr uint32_t kText = 0xd4e5e6;
 constexpr uint32_t kUserBubble = 0x28616d;
 constexpr uint32_t kAssistantBubble = 0x1a2c3c;
 
+// One existing LVGL line changes its point set; no expression sprites,
+// additional images, canvases or per-frame LVGL object allocations.
+static const lv_point_precise_t kSmile[] = {{0, 0}, {8, 9}, {16, 12}, {24, 9}, {32, 0}};
+static const lv_point_precise_t kHappy[] = {{0, 0}, {8, 12}, {16, 15}, {24, 12}, {32, 0}};
+static const lv_point_precise_t kThinking[] = {{0, 5}, {8, 4}, {16, 4}, {24, 4}, {32, 5}};
+static const lv_point_precise_t kSad[] = {{0, 10}, {8, 2}, {16, 0}, {24, 2}, {32, 10}};
+static const lv_point_precise_t kSpeaking[] = {
+    {12, 3}, {16, 0}, {20, 3}, {21, 8}, {20, 13},
+    {16, 16}, {12, 13}, {11, 8}, {12, 3}
+};
+
 lv_obj_t* PixelRect(lv_obj_t* parent, int x, int y, int w, int h, uint32_t color) {
     lv_obj_t* rect = lv_obj_create(parent);
     lv_obj_remove_style_all(rect);
@@ -98,20 +109,16 @@ void PixelRobotDisplay::SetupUI() {
     lv_obj_set_style_border_color(face, lv_color_hex(0x467c95), 0);
 
     for (int i = 0; i < 2; ++i) {
-        auto* cheek = PixelRect(robot, i == 0 ? 25 : 70, 58, 9, 4, 0xd77e91);
-        lv_obj_set_style_radius(cheek, LV_RADIUS_CIRCLE, 0);
+        cheeks_[i] = PixelRect(robot, i == 0 ? 25 : 70, 58, 9, 4, 0xd77e91);
+        lv_obj_set_style_radius(cheeks_[i], LV_RADIUS_CIRCLE, 0);
         eyes_[i] = PixelRect(robot, i == 0 ? 34 : 61, 36, 9, 13, 0xaffbf4);
         lv_obj_set_style_radius(eyes_[i], LV_RADIUS_CIRCLE, 0);
-        // Preserve existing blink lifecycle without a second eye timer.
-        pupils_[i] = PixelRect(robot, i == 0 ? 37 : 64, 40, 1, 1, 0xaffbf4);
-        lv_obj_add_flag(pupils_[i], LV_OBJ_FLAG_HIDDEN);
+        // Dark pupils provide gaze changes; the existing blink timer closes
+        // the eye objects themselves and hides pupils during closure.
+        pupils_[i] = PixelRect(robot, i == 0 ? 37 : 64, 41, 3, 3, 0x23516b);
     }
-    // Low-memory native polyline approximates the original SVG smile.
-    static const lv_point_precise_t smile_points[] = {
-        {0, 0}, {8, 9}, {16, 12}, {24, 9}, {32, 0},
-    };
     mouth_ = lv_line_create(robot);
-    lv_line_set_points(mouth_, smile_points, 5);
+    lv_line_set_points(mouth_, kSmile, 5);
     lv_obj_set_pos(mouth_, 36, 53);
     lv_obj_set_style_line_color(mouth_, lv_color_hex(0xb0f8f5), 0);
     lv_obj_set_style_line_width(mouth_, 3, 0);
@@ -127,6 +134,7 @@ void PixelRobotDisplay::SetupUI() {
 
     HideDefaultEmotion();
     ApplyChatColors();
+    ApplyExpression();
     blink_timer_ = lv_timer_create(
         [](lv_timer_t* timer) {
             auto* self = static_cast<PixelRobotDisplay*>(lv_timer_get_user_data(timer));
@@ -188,14 +196,49 @@ void PixelRobotDisplay::SetupUI() {
 }
 
 void PixelRobotDisplay::SetEyes(bool closed) {
+    blinking_ = closed;
+    ApplyExpression();
+}
+
+void PixelRobotDisplay::ApplyExpression() {
+    if (eyes_[0] == nullptr || mouth_ == nullptr) return;
+    const bool happy = expression_ == RobotExpression::Happy;
+    const bool sad = expression_ == RobotExpression::Sad;
+    const bool thinking = expression_ == RobotExpression::Thinking;
+    const bool speaking = expression_ == RobotExpression::Speaking;
     for (int i = 0; i < 2; ++i) {
-        lv_obj_set_height(eyes_[i], closed ? 2 : 13);
-        lv_obj_set_y(eyes_[i], closed ? 41 : 36);
-        if (closed)
+        const int x = i == 0 ? 34 : 61;
+        const int height = blinking_ ? 2 : (happy ? 7 : (thinking ? 9 : 13));
+        const int y = blinking_ ? 41 : (happy ? 39 : (sad ? 38 : 36));
+        lv_obj_set_pos(eyes_[i], x, y);
+        lv_obj_set_size(eyes_[i], 9, height);
+        if (blinking_ || happy) {
             lv_obj_add_flag(pupils_[i], LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_clear_flag(pupils_[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(pupils_[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_pos(pupils_[i], x + (thinking ? 5 : 3),
+                           y + (sad ? 5 : 4));
+        }
+        if (cheeks_[i] != nullptr) {
+            lv_obj_set_style_bg_opa(cheeks_[i],
+                happy || speaking ? LV_OPA_COVER : LV_OPA_50, 0);
+        }
     }
+    if (sad) {
+        lv_line_set_points(mouth_, kSad, 5);
+    } else if (thinking) {
+        lv_line_set_points(mouth_, kThinking, 5);
+    } else if (speaking) {
+        lv_line_set_points(mouth_, kSpeaking, 9);
+    } else if (happy) {
+        lv_line_set_points(mouth_, kHappy, 5);
+    } else {
+        lv_line_set_points(mouth_, kSmile, 5);
+    }
+    lv_obj_set_style_line_color(mouth_,
+        lv_color_hex(sad ? 0x96c1d6 : 0xb0f8f5), 0);
+    lv_obj_set_style_line_width(mouth_, happy ? 4 : 3, 0);
+    lv_obj_set_pos(mouth_, speaking ? 36 : 36, speaking ? 51 : 53);
 }
 
 void PixelRobotDisplay::HideDefaultEmotion() {
@@ -258,6 +301,11 @@ void PixelRobotDisplay::SetChatMessage(const char* role, const char* content) {
     StyleMessages();
     HideDefaultEmotion();
     if (touch_ui_ != nullptr) touch_ui_->OnChatMessage(role, content);
+    if (role != nullptr && content != nullptr && content[0] != '\0') {
+        if (strcmp(role, "user") == 0) expression_ = RobotExpression::Thinking;
+        else if (strcmp(role, "assistant") == 0) expression_ = RobotExpression::Speaking;
+        ApplyExpression();
+    }
 }
 
 void PixelRobotDisplay::RemoveChatMessage(const char* role, const char* content) {
@@ -273,16 +321,18 @@ void PixelRobotDisplay::ClearChatMessages() {
 }
 
 bool PixelRobotDisplay::SetEmotion(const char* emotion) {
-    if (robot_area_ == nullptr || emotion == nullptr)
-        return false;
+    if (robot_area_ == nullptr || emotion == nullptr) return false;
+    RobotExpression selected;
+    if (strcmp(emotion, "thinking") == 0) selected = RobotExpression::Thinking;
+    else if (strcmp(emotion, "sad") == 0) selected = RobotExpression::Sad;
+    else if (strcmp(emotion, "happy") == 0) selected = RobotExpression::Happy;
+    else if (strcmp(emotion, "speaking") == 0) selected = RobotExpression::Speaking;
+    else if (strcmp(emotion, "neutral") == 0 || strcmp(emotion, "robot_2") == 0)
+        selected = RobotExpression::Neutral;
+    else return false;
     DisplayLockGuard lock(this);
-    // Keep the same character on screen; use a compact mouth for thinking/sadness.
-    bool subdued = strcmp(emotion, "thinking") == 0 || strcmp(emotion, "sad") == 0;
-    bool supported = subdued || strcmp(emotion, "neutral") == 0 ||
-                     strcmp(emotion, "robot_2") == 0 || strcmp(emotion, "happy") == 0;
-    if (!supported)
-        return false;
-    lv_obj_set_style_opa(mouth_, subdued ? LV_OPA_60 : LV_OPA_COVER, 0);
+    expression_ = selected;
+    ApplyExpression();
     HideDefaultEmotion();
     return true;
 }
@@ -311,6 +361,8 @@ void PixelRobotDisplay::ShowDashboard() {
     }
     DisplayLockGuard lock(this);
     // Preserve existing weather/almanac services; replace only the idle view.
+    expression_ = RobotExpression::Neutral;
+    ApplyExpression();
     touch_ui_->Show(robot_area_, container_);
     if (chat_player_button_ != nullptr) {
         lv_obj_add_flag(chat_player_button_, LV_OBJ_FLAG_HIDDEN);
@@ -329,6 +381,13 @@ void PixelRobotDisplay::HideDashboard() {
     }
     DisplayLockGuard lock(this);
     const auto state = Application::GetInstance().GetDeviceState();
+    if (state == kDeviceStateSpeaking) {
+        expression_ = RobotExpression::Speaking;
+        ApplyExpression();
+    } else if (state == kDeviceStateConnecting) {
+        expression_ = RobotExpression::Neutral;
+        ApplyExpression();
+    }
     if (state == kDeviceStateConnecting || state == kDeviceStateListening ||
         state == kDeviceStateSpeaking) {
         // Replace the old chat-only surface with the V1.1 voice state screen.
