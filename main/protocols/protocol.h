@@ -66,7 +66,7 @@ public:
     virtual void SendStopListening();
     virtual void SendAbortSpeaking(AbortReason reason);
     virtual void SendMcpMessage(const std::string& message);
-    void SendMediaControl(const std::string& action);
+    void SendMediaControl(const std::string& action, int index = -1);
 
 protected:
     std::function<void(const cJSON* root)> on_incoming_json_;
