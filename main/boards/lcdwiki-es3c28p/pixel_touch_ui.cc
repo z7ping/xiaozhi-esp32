@@ -4,6 +4,7 @@
 #include "audio_codec.h"
 #include "board.h"
 #include "display/lvgl_display/lvgl_theme.h"
+#include "settings.h"
 
 #include <material_symbols.h>
 
@@ -16,6 +17,8 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <algorithm>
+#include <cstdint>
 
 namespace {
 constexpr uint32_t kBg = 0x071326;
@@ -24,6 +27,27 @@ constexpr uint32_t kBorder = 0x345C74;
 constexpr uint32_t kText = 0xEBF9FE;
 constexpr uint32_t kMuted = 0xACC8D6;
 constexpr uint32_t kAccent = 0x80E9DD;
+constexpr uint32_t kTwilightBg = 0x181724;
+constexpr uint32_t kTwilightPanel = 0x302846;
+constexpr uint32_t kTwilightBorder = 0x635273;
+
+int DaysInMonth(int year, int month) {
+    static constexpr int lengths[12] = {31, 28, 31, 30, 31, 30,
+                                         31, 31, 30, 31, 30, 31};
+    if (month < 1 || month > 12) return 0;
+    if (month == 2 && year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) return 29;
+    return lengths[month - 1];
+}
+int WeekdayOfFirst(int year, int month) {
+    std::tm value{};
+    value.tm_year = year - 1900;
+    value.tm_mon = month - 1;
+    value.tm_mday = 1;
+    value.tm_hour = 12;
+    value.tm_isdst = -1;
+    std::mktime(&value);
+    return value.tm_wday;
+}
 
 void StylePanel(lv_obj_t* obj, uint32_t bg, uint32_t border) {
     lv_obj_set_style_bg_color(obj, lv_color_hex(bg), 0);
@@ -83,6 +107,9 @@ void SetIfChanged(lv_obj_t* label, const char* value) {
 }  // namespace
 
 PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
+    Settings settings("pixel_ui");
+    child_mode_ = settings.GetBool("child_mode", true);
+    twilight_ = settings.GetBool("twilight", false);
     root_ = lv_obj_create(screen);
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, 320, 240);
@@ -182,6 +209,11 @@ void PixelTouchUI::Navigate(Page page) {
     player_status_ = nullptr;
     player_position_ = nullptr;
     player_toggle_ = nullptr;
+    calendar_month_label_ = nullptr;
+    calendar_selected_label_ = nullptr;
+    calendar_details_popup_ = nullptr;
+    child_mode_switch_ = nullptr;
+    twilight_switch_ = nullptr;
     refresh_ticks_ = 0;
 
     switch (page) {
@@ -205,6 +237,7 @@ void PixelTouchUI::Navigate(Page page) {
         UpdatePlayer();
         Application::GetInstance().SendMediaCommand("get_state");
     }
+    ApplyPalette();
 }
 
 void PixelTouchUI::QueueNavigate(Page page) {
@@ -218,12 +251,15 @@ void PixelTouchUI::QueueNavigate(Page page) {
     }, this);
 }
 
-void PixelTouchUI::BuildHeader(const char* title) {
+void PixelTouchUI::BuildHeader(const char* title, bool back) {
     auto* bar = lv_obj_create(body_);
     lv_obj_set_pos(bar, 0, 0);
     lv_obj_set_size(bar, 320, 32);
     StylePanel(bar, kPanel, kBorder);
-    Label(bar, title, 12, 3, 260, 26);
+    if (back) {
+        Button(bar, "", 1, 1, 43, 29, OnHome, this, MATERIAL_SYMBOLS_ARROW_BACK);
+    }
+    Label(bar, title, back ? 52 : 12, 3, back ? 215 : 260, 26);
 }
 
 void PixelTouchUI::BuildBackButton() {
