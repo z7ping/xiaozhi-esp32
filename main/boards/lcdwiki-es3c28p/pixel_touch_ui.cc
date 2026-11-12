@@ -31,9 +31,6 @@ constexpr uint32_t kBorder = 0x345C74;
 constexpr uint32_t kText = 0xEBF9FE;
 constexpr uint32_t kMuted = 0xACC8D6;
 constexpr uint32_t kAccent = 0x80E9DD;
-constexpr uint32_t kTwilightBg = 0x181724;
-constexpr uint32_t kTwilightPanel = 0x302846;
-constexpr uint32_t kTwilightBorder = 0x635273;
 
 int DaysInMonth(int year, int month) {
     static constexpr int lengths[12] = {31, 28, 31, 30, 31, 30,
@@ -114,7 +111,6 @@ void SetIfChanged(lv_obj_t* label, const char* value) {
 PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
     Settings settings("pixel_ui");
     child_mode_ = settings.GetBool("child_mode", true);
-    twilight_ = false;  // Approved V1.1 is single-palette; retain legacy NVS key.
     root_ = lv_obj_create(screen);
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, 320, 240);
@@ -246,17 +242,13 @@ void PixelTouchUI::Navigate(Page page) {
     home_battery_case_ = nullptr;
     home_battery_fill_ = nullptr;
     time_label_ = nullptr;
-    date_label_ = nullptr;
     weather_label_ = nullptr;
     lunar_label_ = nullptr;
     calendar_date_label_ = nullptr;
     calendar_detail_label_ = nullptr;
     brightness_slider_ = nullptr;
     volume_slider_ = nullptr;
-    brightness_value_ = nullptr;
-    volume_value_ = nullptr;
     player_title_ = nullptr;
-    player_header_ = nullptr;
     player_duration_ = nullptr;
     player_volume_popup_ = nullptr;
     player_volume_slider_ = nullptr;
@@ -267,8 +259,6 @@ void PixelTouchUI::Navigate(Page page) {
     player_toggle_ = nullptr;
     player_prev_button_ = nullptr;
     player_next_button_ = nullptr;
-    player_stop_button_ = nullptr;
-    player_list_button_ = nullptr;
     playlist_panel_ = nullptr;
     playlist_page_label_ = nullptr;
     for (auto& button : playlist_buttons_) button = nullptr;
@@ -278,7 +268,6 @@ void PixelTouchUI::Navigate(Page page) {
     for (auto& cell : calendar_cells_) cell = nullptr;
     child_mode_switch_ = nullptr;
     settings_foot_ = nullptr;
-    twilight_switch_ = nullptr;
     refresh_ticks_ = 0;
 
     switch (page) {
@@ -307,7 +296,6 @@ void PixelTouchUI::Navigate(Page page) {
         UpdatePlayer();
         Application::GetInstance().SendMediaCommand("get_state");
     }
-    ApplyPalette();
 #if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
     LogUiGeometry();
 #endif
@@ -431,11 +419,6 @@ void PixelTouchUI::BuildHeader(const char* title, bool back) {
     }
     auto* label = Label(bar, title, back ? 49 : 12, 8, back ? 220 : 290, 20);
     lv_obj_set_style_text_color(label, lv_color_hex(kText), 0);
-}
-
-void PixelTouchUI::BuildBackButton() {
-    Button(body_, "返回", 8, 194, 92, 38, OnHome, this,
-           MATERIAL_SYMBOLS_ARROW_BACK);
 }
 
 void PixelTouchUI::BuildHome() {
@@ -1188,19 +1171,11 @@ void PixelTouchUI::Refresh() {
 }
 
 void PixelTouchUI::UpdateSliderValues() {
-    char text[8];
-    if (brightness_slider_ != nullptr) {
-        std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(lv_slider_get_value(brightness_slider_)));
-        SetIfChanged(brightness_value_, text);
-    }
-    if (volume_slider_ != nullptr) {
-        std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(lv_slider_get_value(volume_slider_)));
-        SetIfChanged(volume_value_, text);
-    }
     if (player_volume_slider_ != nullptr) {
-        std::snprintf(text, sizeof(text), "%d%%",
+        char value[8];
+        std::snprintf(value, sizeof(value), "%d%%",
                       static_cast<int>(lv_slider_get_value(player_volume_slider_)));
-        SetIfChanged(player_volume_value_, text);
+        SetIfChanged(player_volume_value_, value);
     }
 }
 
@@ -1229,9 +1204,6 @@ void PixelTouchUI::OnHome(lv_event_t* event) {
 }
 void PixelTouchUI::OnCalendar(lv_event_t* event) {
     static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Calendar);
-}
-void PixelTouchUI::OnPlayer(lv_event_t* event) {
-    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Player);
 }
 void PixelTouchUI::OnStory(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
@@ -1361,30 +1333,6 @@ void PixelTouchUI::OnCalendarClose(lv_event_t* event) {
     }
 }
 
-void PixelTouchUI::ApplyPalette() {
-    // Recolor only explicitly styled panels. Labels, calendar selection
-    // highlights and the existing robot sprite retain their own colors.
-    auto recolor = [this](auto&& walk, lv_obj_t* object) -> void {
-        if (object == robot_area_) return;
-        const uint32_t current = lv_color_to_u32(lv_obj_get_style_bg_color(object, LV_PART_MAIN));
-        // LVGL may quantize colors to RGB565; compare through the same
-        // converter instead of comparing against unquantized 24-bit constants.
-        if (current == lv_color_to_u32(lv_color_hex(kBg)) ||
-            current == lv_color_to_u32(lv_color_hex(kTwilightBg))) {
-            lv_obj_set_style_bg_color(object, lv_color_hex(twilight_ ? kTwilightBg : kBg), 0);
-        } else if (current == lv_color_to_u32(lv_color_hex(kPanel)) ||
-                   current == lv_color_to_u32(lv_color_hex(kTwilightPanel))) {
-            lv_obj_set_style_bg_color(object, lv_color_hex(twilight_ ? kTwilightPanel : kPanel), 0);
-            lv_obj_set_style_border_color(object,
-                lv_color_hex(twilight_ ? kTwilightBorder : kBorder), 0);
-        }
-        for (uint32_t index = 0; index < lv_obj_get_child_count(object); ++index) {
-            walk(walk, lv_obj_get_child(object, index));
-        }
-    };
-    recolor(recolor, root_);
-}
-
 void PixelTouchUI::OnChildModeChanged(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
     self->child_mode_ = lv_obj_has_state(self->child_mode_switch_, LV_STATE_CHECKED);
@@ -1395,14 +1343,6 @@ void PixelTouchUI::OnChildModeChanged(lv_event_t* event) {
 #if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
     self->LogUiGeometry();
 #endif
-}
-
-void PixelTouchUI::OnTwilightChanged(lv_event_t* event) {
-    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
-    self->twilight_ = lv_obj_has_state(self->twilight_switch_, LV_STATE_CHECKED);
-    Settings settings("pixel_ui", true);
-    settings.SetBool("twilight", self->twilight_);
-    self->ApplyPalette();
 }
 
 void PixelTouchUI::OnPlaylistOpen(lv_event_t* event) {
