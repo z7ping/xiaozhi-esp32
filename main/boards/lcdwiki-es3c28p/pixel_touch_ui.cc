@@ -131,6 +131,9 @@ PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
 }
 
 PixelTouchUI::~PixelTouchUI() {
+    // LVGL queues only the raw this pointer. Cancel callbacks before deletion
+    // to avoid use-after-free during screen teardown or reboot.
+    lv_async_call_cancel(RunQueuedNavigation, this);
     // The robot is owned by the existing chat display, not by these pages.
     DetachRobot();
     if (refresh_timer_ != nullptr) {
@@ -247,15 +250,20 @@ void PixelTouchUI::Navigate(Page page) {
     ApplyPalette();
 }
 
+void PixelTouchUI::RunQueuedNavigation(void* data) {
+    auto* self = static_cast<PixelTouchUI*>(data);
+    if (self->root_ != nullptr &&
+        !lv_obj_has_flag(self->root_, LV_OBJ_FLAG_HIDDEN)) {
+        self->Navigate(self->queued_page_);
+    }
+}
+
 void PixelTouchUI::QueueNavigate(Page page) {
     queued_page_ = page;
-    // Do not delete the clicked LVGL object while its event is being dispatched.
-    lv_async_call([](void* data) {
-        auto* self = static_cast<PixelTouchUI*>(data);
-        if (!lv_obj_has_flag(self->root_, LV_OBJ_FLAG_HIDDEN)) {
-            self->Navigate(self->queued_page_);
-        }
-    }, this);
+    // Only one deferred transition is needed after an LVGL click callback.
+    // Cancel previous requests so fast taps cannot rebuild the page repeatedly.
+    lv_async_call_cancel(RunQueuedNavigation, this);
+    lv_async_call(RunQueuedNavigation, this);
 }
 
 void PixelTouchUI::BuildHeader(const char* title, bool back) {
