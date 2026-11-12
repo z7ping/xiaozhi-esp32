@@ -242,6 +242,9 @@ void PixelTouchUI::Navigate(Page page) {
     voice_primary_ = nullptr;
     voice_stop_ = nullptr;
     home_day_label_ = nullptr;
+    home_network_icon_ = nullptr;
+    home_battery_case_ = nullptr;
+    home_battery_fill_ = nullptr;
     time_label_ = nullptr;
     date_label_ = nullptr;
     weather_label_ = nullptr;
@@ -438,6 +441,25 @@ void PixelTouchUI::BuildBackButton() {
 void PixelTouchUI::BuildHome() {
     // V1.1 browser baseline: no legacy 32px banner; compact date/status row.
     home_day_label_ = Label(body_, "--月--日 · 星期--", 14, 10, 172, 21, kMuted);
+    home_network_icon_ = Label(body_, "", 226, 8, 19, 20, 0xb2c5d6);
+    auto* theme = static_cast<LvglTheme*>(Board::GetInstance().GetDisplay()->GetTheme());
+    lv_obj_set_style_text_font(home_network_icon_, theme->icon_font()->font(), 0);
+    home_battery_case_ = lv_obj_create(body_);
+    lv_obj_remove_style_all(home_battery_case_);
+    lv_obj_set_pos(home_battery_case_, 253, 15);
+    lv_obj_set_size(home_battery_case_, 19, 10);
+    lv_obj_set_style_radius(home_battery_case_, 2, 0);
+    lv_obj_set_style_border_color(home_battery_case_, lv_color_hex(0xa4b6c8), 0);
+    lv_obj_set_style_border_width(home_battery_case_, 1, 0);
+    lv_obj_clear_flag(home_battery_case_, LV_OBJ_FLAG_CLICKABLE);
+    home_battery_fill_ = lv_obj_create(home_battery_case_);
+    lv_obj_remove_style_all(home_battery_fill_);
+    lv_obj_set_pos(home_battery_fill_, 1, 1);
+    lv_obj_set_size(home_battery_fill_, 0, 6);
+    lv_obj_set_style_bg_color(home_battery_fill_, lv_color_hex(0x82e1d6), 0);
+    lv_obj_set_style_bg_opa(home_battery_fill_, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(home_battery_fill_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(home_battery_case_, LV_OBJ_FLAG_HIDDEN);
     auto* settings = Button(body_, "", 279, 6, 28, 28, OnSettings, this,
                             MATERIAL_SYMBOLS_SETTINGS);
     lv_obj_set_style_bg_opa(settings, LV_OPA_TRANSP, 0);
@@ -981,6 +1003,21 @@ void PixelTouchUI::BuildSettings() {
 }
 
 void PixelTouchUI::RefreshHome() {
+    if (home_network_icon_ != nullptr) {
+        const char* symbol = Board::GetInstance().GetNetworkStateIcon();
+        SetIfChanged(home_network_icon_, symbol != nullptr ? symbol : "");
+    }
+    if (home_battery_case_ != nullptr && home_battery_fill_ != nullptr) {
+        int level = 0;
+        bool charging = false, discharging = false;
+        if (Board::GetInstance().GetBatteryLevel(level, charging, discharging)) {
+            level = std::max(0, std::min(100, level));
+            lv_obj_set_width(home_battery_fill_, 16 * level / 100);
+            lv_obj_remove_flag(home_battery_case_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(home_battery_case_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
     std::time_t now = std::time(nullptr);
     std::tm local{};
     localtime_r(&now, &local);
