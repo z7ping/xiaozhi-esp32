@@ -168,6 +168,22 @@ void PixelTouchUI::ShowPlayer(lv_obj_t* robot_area, lv_obj_t* chat_container) {
     lv_timer_resume(refresh_timer_);
 }
 
+void PixelTouchUI::ShowVoice(lv_obj_t* robot_area, lv_obj_t* chat_container) {
+    if (robot_area == nullptr || chat_container == nullptr) return;
+    robot_area_ = robot_area;
+    chat_container_ = chat_container;
+    lv_obj_clear_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_to_index(root_, lv_obj_get_child_count(lv_obj_get_parent(root_)) - 1);
+    if (page_ != Page::Voice) Navigate(Page::Voice);
+    RefreshVoice();
+    lv_timer_resume(refresh_timer_);
+}
+
+bool PixelTouchUI::IsPlayerVisible() const {
+    return page_ == Page::Player && root_ != nullptr &&
+           !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN);
+}
+
 void PixelTouchUI::Hide() {
     DetachRobot();
     lv_timer_pause(refresh_timer_);
@@ -199,6 +215,10 @@ void PixelTouchUI::Navigate(Page page) {
     DetachRobot();
     lv_obj_clean(body_);
     page_ = page;
+    voice_title_ = nullptr;
+    voice_caption_ = nullptr;
+    voice_primary_ = nullptr;
+    voice_stop_ = nullptr;
     home_day_label_ = nullptr;
     time_label_ = nullptr;
     date_label_ = nullptr;
@@ -235,6 +255,9 @@ void PixelTouchUI::Navigate(Page page) {
             BuildHome();
             AttachRobot();
             break;
+        case Page::Voice:
+            BuildVoice();
+            break;
         case Page::Calendar:
             BuildCalendar();
             break;
@@ -246,6 +269,7 @@ void PixelTouchUI::Navigate(Page page) {
             break;
     }
     if (page == Page::Home) RefreshHome();
+    if (page == Page::Voice) RefreshVoice();
     if (page == Page::Calendar) RefreshCalendar();
     if (page == Page::Player) {
         UpdatePlayer();
@@ -308,6 +332,83 @@ void PixelTouchUI::BuildHome() {
            MATERIAL_SYMBOLS_MUSIC_NOTE);
     Button(body_, "万年历", 214, 199, 98, 38, OnCalendar, this,
            MATERIAL_SYMBOLS_CALENDAR_MONTH);
+}
+
+void PixelTouchUI::BuildVoice() {
+    BuildHeader("和天天聊天", true);
+    // V1.1: 98px voice ring at (111,47), 78px circular face inset 10px.
+    auto* ring = lv_obj_create(body_);
+    lv_obj_remove_style_all(ring);
+    lv_obj_set_pos(ring, 111, 47);
+    lv_obj_set_size(ring, 98, 98);
+    lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_color(ring, lv_color_hex(0x6ce0d6), 0);
+    lv_obj_set_style_border_width(ring, 2, 0);
+    lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE);
+
+    auto* face = lv_obj_create(body_);
+    lv_obj_remove_style_all(face);
+    lv_obj_set_pos(face, 121, 57);
+    lv_obj_set_size(face, 78, 78);
+    lv_obj_set_style_radius(face, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(face, lv_color_hex(0x173a5b), 0);
+    lv_obj_set_style_bg_opa(face, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(face, LV_OBJ_FLAG_CLICKABLE);
+
+    for (int x : {142, 169}) {
+        auto* eye = lv_obj_create(body_);
+        lv_obj_remove_style_all(eye);
+        lv_obj_set_pos(eye, x, 83);
+        lv_obj_set_size(eye, 9, 13);
+        lv_obj_set_style_radius(eye, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(eye, lv_color_hex(0xaffbf4), 0);
+        lv_obj_set_style_bg_opa(eye, LV_OPA_COVER, 0);
+        lv_obj_clear_flag(eye, LV_OBJ_FLAG_CLICKABLE);
+    }
+
+    voice_title_ = Label(body_, "正在聆听…", 8, 151, 304, 24);
+    lv_obj_set_style_text_align(voice_title_, LV_TEXT_ALIGN_CENTER, 0);
+    voice_caption_ = Label(body_, "我在听，你想聊什么？", 20, 177, 280, 16, kMuted);
+    lv_obj_set_style_text_align(voice_caption_, LV_TEXT_ALIGN_CENTER, 0);
+
+    voice_stop_ = Button(body_, "结束对话", 12, 197, 128, 33, OnVoiceStop, this);
+    voice_primary_ = Button(body_, "说话中", 148, 197, 160, 33, OnVoicePrimary, this);
+    lv_obj_set_style_radius(voice_stop_, 9, 0);
+    lv_obj_set_style_radius(voice_primary_, 9, 0);
+    lv_obj_set_style_bg_color(voice_primary_, lv_color_hex(0x80e4d7), 0);
+    lv_obj_set_style_text_color(lv_obj_get_child(voice_primary_, 0), lv_color_hex(0x092b34), 0);
+    RefreshVoice();
+}
+
+void PixelTouchUI::RefreshVoice() {
+    if (voice_title_ == nullptr || voice_primary_ == nullptr) return;
+    const auto state = Application::GetInstance().GetDeviceState();
+    const char* title = "等待对话";
+    const char* caption = "点击开始说话";
+    const char* primary = "开始说话";
+    bool enabled = true;
+    if (state == kDeviceStateListening) {
+        title = "正在聆听…";
+        caption = "我在听，你想聊什么？";
+        primary = "正在聆听";
+        enabled = false;
+    } else if (state == kDeviceStateSpeaking) {
+        title = "天天正在回答";
+        caption = "点击停止播报";
+        primary = "停止播报";
+    } else if (state == kDeviceStateConnecting) {
+        title = "正在连接…";
+        caption = "正在连接语音服务";
+        primary = "连接中";
+        enabled = false;
+    }
+    SetIfChanged(voice_title_, title);
+    SetIfChanged(voice_caption_, caption);
+    SetIfChanged(lv_obj_get_child(voice_primary_, 0), primary);
+    SetIfChanged(lv_obj_get_child(voice_stop_, 0),
+                 state == kDeviceStateSpeaking ? "停止播报" : "结束对话");
+    if (enabled) lv_obj_remove_state(voice_primary_, LV_STATE_DISABLED);
+    else lv_obj_add_state(voice_primary_, LV_STATE_DISABLED);
 }
 
 void PixelTouchUI::BuildCalendar() {
@@ -816,6 +917,7 @@ void PixelTouchUI::Refresh() {
     } else if (++refresh_ticks_ >= 6) {
         refresh_ticks_ = 0;
         if (page_ == Page::Home) RefreshHome();
+        if (page_ == Page::Voice) RefreshVoice();
         if (page_ == Page::Calendar) RefreshCalendar();
     }
 }
@@ -846,6 +948,21 @@ void PixelTouchUI::OnPlayer(lv_event_t* event) {
 }
 void PixelTouchUI::OnTalk(lv_event_t*) {
     Application::GetInstance().ToggleChatState();
+}
+void PixelTouchUI::OnVoiceStop(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    const auto state = Application::GetInstance().GetDeviceState();
+    if (state == kDeviceStateListening || state == kDeviceStateSpeaking) {
+        Application::GetInstance().ToggleChatState();
+    } else {
+        self->QueueNavigate(Page::Home);
+    }
+}
+void PixelTouchUI::OnVoicePrimary(lv_event_t*) {
+    const auto state = Application::GetInstance().GetDeviceState();
+    if (state == kDeviceStateIdle || state == kDeviceStateSpeaking) {
+        Application::GetInstance().ToggleChatState();
+    }
 }
 void PixelTouchUI::OnSliderChange(lv_event_t* event) {
     static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->UpdateSliderValues();
