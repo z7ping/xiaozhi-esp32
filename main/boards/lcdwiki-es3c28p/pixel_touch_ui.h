@@ -14,6 +14,8 @@ public:
 
     void Show(lv_obj_t* robot_area, lv_obj_t* chat_container);
     void ShowPlayer(lv_obj_t* robot_area, lv_obj_t* chat_container);
+    void ShowVoice(lv_obj_t* robot_area, lv_obj_t* chat_container);
+    bool IsPlayerVisible() const;
     void Hide();
     void Refresh();
     void SetMediaState(const char* state, const char* title, int64_t position_ms,
@@ -22,7 +24,7 @@ public:
     void SetMediaPlaylist(int offset, const std::vector<std::string>& titles);
 
 private:
-    enum class Page { Home, Calendar, Player, Settings };
+    enum class Page { Home, Voice, Calendar, Player, Settings };
 
     void Navigate(Page page);
     void QueueNavigate(Page page);
@@ -30,6 +32,8 @@ private:
     void AttachRobot();
     void DetachRobot();
     void BuildHome();
+    void BuildVoice();
+    void RefreshVoice();
     void BuildCalendar();
     void BuildPlayer();
     void SyncMediaAvailability();
@@ -52,6 +56,8 @@ private:
     static void OnCalendar(lv_event_t* event);
     static void OnPlayer(lv_event_t* event);
     static void OnTalk(lv_event_t* event);
+    static void OnVoiceStop(lv_event_t* event);
+    static void OnVoicePrimary(lv_event_t* event);
     static void OnSliderChange(lv_event_t* event);
     static void OnSliderRelease(lv_event_t* event);
     static void OnMediaPrev(lv_event_t* event);
@@ -103,6 +109,10 @@ private:
     lv_obj_t* chat_container_ = nullptr;
     lv_obj_t* robot_slot_ = nullptr;
     lv_obj_t* home_day_label_ = nullptr;
+    lv_obj_t* voice_title_ = nullptr;
+    lv_obj_t* voice_caption_ = nullptr;
+    lv_obj_t* voice_primary_ = nullptr;
+    lv_obj_t* voice_stop_ = nullptr;
     lv_obj_t* time_label_ = nullptr;
     lv_obj_t* date_label_ = nullptr;
     lv_obj_t* weather_label_ = nullptr;
