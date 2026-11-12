@@ -97,6 +97,7 @@ private:
     lv_obj_t* robot_area_ = nullptr;
     lv_obj_t* chat_container_ = nullptr;
     lv_obj_t* robot_slot_ = nullptr;
+    lv_obj_t* home_day_label_ = nullptr;
     lv_obj_t* time_label_ = nullptr;
     lv_obj_t* date_label_ = nullptr;
     lv_obj_t* weather_label_ = nullptr;
