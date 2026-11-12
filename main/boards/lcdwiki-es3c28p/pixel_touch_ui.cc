@@ -118,7 +118,10 @@ PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
     root_ = lv_obj_create(screen);
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, 320, 240);
-    StylePanel(root_, kBg, kBg);
+    StylePanel(root_, 0x0a1525, 0x0a1525);
+    lv_obj_set_style_border_width(root_, 0, 0);
+    lv_obj_set_style_bg_grad_color(root_, lv_color_hex(0x111f30), 0);
+    lv_obj_set_style_bg_grad_dir(root_, LV_GRAD_DIR_VER, 0);
     lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 
     body_ = lv_obj_create(root_);
@@ -476,6 +479,28 @@ void PixelTouchUI::BuildVoice() {
     lv_obj_set_size(robot_slot_, 98, 98);
     lv_obj_add_flag(robot_slot_, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(robot_slot_, OnVoicePrimary, LV_EVENT_CLICKED, this);
+
+    // Same eyes, cheeks and curved mouth as the V1.1 home mascot.
+    for (int x : {133, 178}) {
+        auto* cheek = lv_obj_create(body_);
+        lv_obj_remove_style_all(cheek);
+        lv_obj_set_pos(cheek, x, 106);
+        lv_obj_set_size(cheek, 9, 4);
+        lv_obj_set_style_radius(cheek, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(cheek, lv_color_hex(0xffa4a5), 0);
+        lv_obj_set_style_bg_opa(cheek, LV_OPA_50, 0);
+        lv_obj_clear_flag(cheek, LV_OBJ_FLAG_CLICKABLE);
+    }
+    static const lv_point_precise_t smile_points[] = {
+        {0, 0}, {8, 9}, {16, 12}, {24, 9}, {32, 0},
+    };
+    auto* smile = lv_line_create(body_);
+    lv_line_set_points(smile, smile_points, 5);
+    lv_obj_set_pos(smile, 144, 100);
+    lv_obj_set_style_line_color(smile, lv_color_hex(0xb0f8f5), 0);
+    lv_obj_set_style_line_width(smile, 3, 0);
+    lv_obj_set_style_line_rounded(smile, true, 0);
+    lv_obj_clear_flag(smile, LV_OBJ_FLAG_CLICKABLE);
 
     voice_title_ = Label(body_, "正在聆听…", 8, 151, 304, 24);
     lv_obj_set_style_text_align(voice_title_, LV_TEXT_ALIGN_CENTER, 0);
