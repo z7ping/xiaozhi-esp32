@@ -28,6 +28,36 @@ def issues(baseline, extracted):
             errors.append(f"{key} differs from approved baseline")
     return errors
 
+# Real LCD regressions reported on 2026-11-12. These compare actual LVGL
+# object rectangles instead of trusting the HTML or C++ source constants.
+TEXT_COLLISION_PAIRS = {
+    "home": [("home-lunar", "home-hint-text")],
+    "player.story.playing": [("play-status", "track-title")],
+    "player.story.paused": [("play-status", "track-title")],
+    "player.story.idle": [("play-status", "track-title")],
+    "player.story.volume": [("play-status", "track-title")],
+    "player.song.playing": [("play-status", "track-title")],
+    "calendar.default": [("cal-picked", "cal-lunar")],
+    "settings.child-on": [("settings-layout-detail", "setting-foot")],
+    "settings.child-off": [("settings-layout-detail", "setting-foot")],
+}
+
+def collision_issues(states):
+    errors = []
+    for state, pairs in TEXT_COLLISION_PAIRS.items():
+        if state not in states:
+            continue
+        anchors = states[state].get("anchors", {})
+        for left, right in pairs:
+            a, b = anchors.get(left), anchors.get(right)
+            if a is None or b is None:
+                errors.append(f"{state}: missing collision evidence {left}/{right}")
+                continue
+            if (a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and
+                a[1] < b[1] + b[3] and b[1] < a[1] + a[3]):
+                errors.append(f"{state}: labels overlap {left}={a} / {right}={b}")
+    return errors
+
 def implementation_check(baseline, runtime_path, required_states=None):
     errors = []
     if not UI_CC.is_file() or not UI_H.is_file():
@@ -47,6 +77,7 @@ def implementation_check(baseline, runtime_path, required_states=None):
         errors.append("LVGL capture format outdated or undelimited; no reliable geometry evidence")
     if runtime.get("viewport") != baseline["viewport"]:
         errors.append("LVGL runtime viewport differs from 320x240 baseline")
+    errors.extend(collision_issues(runtime.get("states", {})))
     for name in required_states or []:
         if name not in runtime.get("states", {}):
             errors.append(f"missing runtime state {name}")
