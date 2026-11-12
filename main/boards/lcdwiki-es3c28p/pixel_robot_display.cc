@@ -7,8 +7,8 @@
 #if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE && CONFIG_USE_WECHAT_MESSAGE_STYLE
 
 #include <cstring>
-#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
 #include "application.h"
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
 
 #include <esp_heap_caps.h>
 #include <esp_log.h>
@@ -309,6 +309,22 @@ void PixelRobotDisplay::HideDashboard() {
         return;
     }
     DisplayLockGuard lock(this);
+    const auto state = Application::GetInstance().GetDeviceState();
+    if (state == kDeviceStateConnecting || state == kDeviceStateListening ||
+        state == kDeviceStateSpeaking) {
+        // Replace the old chat-only surface with the V1.1 voice state screen.
+        // Never interrupt a deliberately opened touch player during playback.
+        if (!touch_ui_->IsPlayerVisible()) {
+            touch_ui_->ShowVoice(robot_area_, container_);
+        }
+        // Keep the existing media entry accessible during audio streaming.
+        if (chat_player_button_ != nullptr) {
+            lv_obj_clear_flag(chat_player_button_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_to_index(chat_player_button_,
+                                 lv_obj_get_child_count(lv_screen_active()) - 1);
+        }
+        return;
+    }
     touch_ui_->Hide();
     if (chat_player_button_ != nullptr) {
         lv_obj_clear_flag(chat_player_button_, LV_OBJ_FLAG_HIDDEN);
