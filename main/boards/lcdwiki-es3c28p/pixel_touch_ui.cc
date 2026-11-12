@@ -68,6 +68,15 @@ lv_obj_t* Label(lv_obj_t* parent, const char* text, int x, int y, int w, int h,
     lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
     lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
     lv_label_set_text(label, text);
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    // Size must accommodate the *font line height*, not the nominal 14px
+    // size. The existing 14px CJK pack has 16px line height.
+    const auto* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    if (font != nullptr && h < font->line_height) {
+        ESP_LOGW("ES3C28P_UI", "label clipped: text=%s box_h=%d font_h=%d",
+                 text, h, static_cast<int>(font->line_height));
+    }
+#endif
     return label;
 }
 
@@ -711,7 +720,7 @@ void PixelTouchUI::BuildCalendar() {
 
     static constexpr const char* week[] = {"日", "一", "二", "三", "四", "五", "六"};
     for (int col = 0; col < 7; ++col) {
-        auto* label = Label(body_, week[col], 13 + col * 42, 70, 42, 15, 0x718da6);
+        auto* label = Label(body_, week[col], 13 + col * 42, 70, 42, 16, 0x718da6);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     }
     std::time_t now = std::time(nullptr);
@@ -771,8 +780,8 @@ void PixelTouchUI::BuildCalendar() {
     lv_obj_set_style_radius(footer, 9, 0);
     lv_obj_add_flag(footer, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(footer, OnCalendarDetail, LV_EVENT_CLICKED, this);
-    calendar_selected_label_ = Label(footer, "", 11, 2, 180, 16, kText);
-    calendar_lunar_label_ = Label(footer, "农历待查询", 11, 18, 178, 14, 0x94abbf);
+    calendar_selected_label_ = Label(footer, "", 11, 0, 180, 16, kText);
+    calendar_lunar_label_ = Label(footer, "农历待查询", 11, 18, 178, 16, 0x94abbf);
     Label(footer, "查看黄历详情 ›", 195, 8, 92, 19, 0x80dfd2);
 
     calendar_details_popup_ = lv_obj_create(body_);
@@ -827,8 +836,8 @@ void PixelTouchUI::BuildPlayer() {
     lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
     lv_obj_add_event_cb(player_seek_slider_, OnMediaSeek, LV_EVENT_RELEASED, this);
 
-    player_position_ = Label(body_, "--:--", 22, 164, 65, 15, 0x8fa7bd);
-    player_duration_ = Label(body_, "--:--", 235, 164, 63, 15, 0x8fa7bd);
+    player_position_ = Label(body_, "--:--", 22, 164, 65, 16, 0x8fa7bd);
+    player_duration_ = Label(body_, "--:--", 235, 164, 63, 16, 0x8fa7bd);
     lv_obj_set_style_text_align(player_duration_, LV_TEXT_ALIGN_RIGHT, 0);
 
     player_prev_button_ = Button(body_, "", 65, 181, 41, 41,
@@ -1063,7 +1072,7 @@ void PixelTouchUI::BuildSettings() {
         lv_obj_clear_flag(divider, LV_OBJ_FLAG_CLICKABLE);
     }
     Label(body_, "儿童模式", 14, 50, 160, 17);
-    Label(body_, "减少误触和复杂操作", 14, 68, 190, 15, 0x829eb5);
+    Label(body_, "减少误触和复杂操作", 14, 68, 190, 16, 0x829eb5);
     child_mode_switch_ = lv_switch_create(body_);
     lv_obj_set_pos(child_mode_switch_, 271, 54);
     lv_obj_set_size(child_mode_switch_, 32, 19);
@@ -1091,10 +1100,10 @@ void PixelTouchUI::BuildSettings() {
         lv_obj_add_event_cb(slider, OnSliderRelease, LV_EVENT_RELEASED, this);
     }
     Label(body_, "当前布局", 14, 179, 120, 16);
-    settings_layout_detail_ = Label(body_, "320 × 240 · 横屏", 14, 198, 164, 14, 0x829eb5);
+    settings_layout_detail_ = Label(body_, "320 × 240 · 横屏", 14, 198, 164, 16, 0x829eb5);
     Label(body_, "V1.1", 271, 184, 36, 18, 0x8bd7c7);
     settings_foot_ = Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
-                           15, 220, 220, 15, 0x829eb5);
+                           15, 220, 220, 16, 0x829eb5);
 }
 
 void PixelTouchUI::RefreshHome() {
