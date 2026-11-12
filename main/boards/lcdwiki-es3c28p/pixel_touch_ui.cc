@@ -470,7 +470,12 @@ void PixelTouchUI::LogUiGeometry() const {
     // Serial parser clears any earlier snapshot on this explicit boundary.
     ESP_LOGI("ES3C28P_UI", "state=%s begin=1", state);
     auto log = [state](const char* key, lv_obj_t* obj) {
-        if (obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return;
+        if (obj == nullptr) return;
+        // A visible child inside a hidden popup is not real on-screen
+        // evidence. Check ancestor visibility before logging geometry.
+        for (auto* p = obj; p != nullptr; p = lv_obj_get_parent(p)) {
+            if (lv_obj_has_flag(p, LV_OBJ_FLAG_HIDDEN)) return;
+        }
         lv_area_t a{};
         lv_obj_get_coords(obj, &a);
         ESP_LOGI("ES3C28P_UI",
