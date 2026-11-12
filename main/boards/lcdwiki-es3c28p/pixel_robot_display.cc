@@ -36,6 +36,11 @@ lv_obj_t* PixelRect(lv_obj_t* parent, int x, int y, int w, int h, uint32_t color
 }  // namespace
 
 PixelRobotDisplay::~PixelRobotDisplay() {
+    if (chat_player_button_ != nullptr) {
+        DisplayLockGuard lock(this);
+        lv_obj_delete(chat_player_button_);
+        chat_player_button_ = nullptr;
+    }
     if (touch_ui_) {
         DisplayLockGuard lock(this);
         touch_ui_.reset();
