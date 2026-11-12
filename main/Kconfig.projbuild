@@ -1267,6 +1267,14 @@ config LCDWIKI_ES3C28P_LANDSCAPE
     depends on BOARD_TYPE_LCDWIKI_ES3C28P
     default n
 
+config LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    bool "LCDWiki ES3C28P resource sampling (diagnostic builds only)"
+    depends on BOARD_TYPE_LCDWIKI_ES3C28P && LCDWIKI_ES3C28P_LANDSCAPE
+    default n
+    help
+        Print heap and PSRAM statistics every 3 seconds from the LVGL task.
+        This is intended for temporary hardware measurements, not production.
+
 config WEATHER_DASHBOARD
     bool "Standby weather dashboard (待机天气仪表盘)"
     depends on IDF_TARGET_ESP32S3
