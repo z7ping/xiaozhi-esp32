@@ -420,6 +420,8 @@ void PixelTouchUI::LogUiGeometry() const {
             state = child_mode_ ? "settings.child-on" : "settings.child-off";
             break;
     }
+    // Serial parser clears any earlier snapshot on this explicit boundary.
+    ESP_LOGI("ES3C28P_UI", "state=%s begin=1", state);
     auto log = [state](const char* key, lv_obj_t* obj) {
         if (obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return;
         lv_area_t a{};
