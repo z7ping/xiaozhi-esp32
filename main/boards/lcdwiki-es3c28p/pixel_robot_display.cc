@@ -1,5 +1,8 @@
 #include "pixel_robot_display.h"
 #include "pixel_touch_ui.h"
+#include "display/lvgl_display/lvgl_theme.h"
+
+#include <material_symbols.h>
 
 #if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE && CONFIG_USE_WECHAT_MESSAGE_STYLE
 
@@ -110,6 +113,33 @@ void PixelRobotDisplay::SetupUI() {
         },
         3500, this);
     touch_ui_ = std::make_unique<PixelTouchUI>(lv_screen_active());
+
+    // During streamed media the app is in 'speaking', not 'idle'.
+    // Keep an entry point on the existing chat surface so the player
+    // remains accessible while the Go server is streaming audio.
+    chat_player_button_ = lv_obj_create(lv_screen_active());
+    lv_obj_remove_style_all(chat_player_button_);
+    lv_obj_set_pos(chat_player_button_, 273, 32);
+    lv_obj_set_size(chat_player_button_, 42, 34);
+    lv_obj_set_style_bg_color(chat_player_button_, lv_color_hex(0x10263B), 0);
+    lv_obj_set_style_bg_opa(chat_player_button_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(chat_player_button_, lv_color_hex(0x80E9DD), 0);
+    lv_obj_set_style_border_width(chat_player_button_, 1, 0);
+    lv_obj_add_flag(chat_player_button_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(chat_player_button_, LV_OBJ_FLAG_SCROLLABLE);
+    auto* music_icon = lv_label_create(chat_player_button_);
+    lv_label_set_text(music_icon, MATERIAL_SYMBOLS_MUSIC_NOTE);
+    auto* theme = static_cast<LvglTheme*>(GetTheme());
+    lv_obj_set_style_text_font(music_icon, theme->icon_font()->font(), 0);
+    lv_obj_set_style_text_color(music_icon, lv_color_hex(0x80E9DD), 0);
+    lv_obj_center(music_icon);
+    lv_obj_add_event_cb(chat_player_button_, [](lv_event_t* event) {
+        auto* self = static_cast<PixelRobotDisplay*>(lv_event_get_user_data(event));
+        if (self->touch_ui_ != nullptr) {
+            self->touch_ui_->ShowPlayer(self->robot_area_, self->container_);
+        }
+    }, LV_EVENT_CLICKED, this);
+    lv_obj_add_flag(chat_player_button_, LV_OBJ_FLAG_HIDDEN);
 #if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
     // Diagnostic-only: sample in the existing LVGL task; no extra task or
     // full-screen refresh. Heap minimums are historical low-water marks.
@@ -252,6 +282,9 @@ void PixelRobotDisplay::ShowDashboard() {
     DisplayLockGuard lock(this);
     // Preserve existing weather/almanac services; replace only the idle view.
     touch_ui_->Show(robot_area_, container_);
+    if (chat_player_button_ != nullptr) {
+        lv_obj_add_flag(chat_player_button_, LV_OBJ_FLAG_HIDDEN);
+    }
     // Keep the existing low-battery warning above the idle touch surface.
     if (low_battery_popup_ != nullptr) {
         auto* screen = lv_obj_get_parent(low_battery_popup_);
@@ -266,6 +299,9 @@ void PixelRobotDisplay::HideDashboard() {
     }
     DisplayLockGuard lock(this);
     touch_ui_->Hide();
+    if (chat_player_button_ != nullptr) {
+        lv_obj_clear_flag(chat_player_button_, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 #endif
 
