@@ -208,6 +208,7 @@ void PixelTouchUI::Navigate(Page page) {
     player_title_ = nullptr;
     player_status_ = nullptr;
     player_position_ = nullptr;
+    player_seek_slider_ = nullptr;
     player_toggle_ = nullptr;
     playlist_panel_ = nullptr;
     playlist_page_label_ = nullptr;
@@ -368,7 +369,17 @@ void PixelTouchUI::BuildPlayer() {
     BuildHeader("媒体播放器");
     player_title_ = Label(body_, "正在同步播放状态", 14, 45, 290, 30);
     player_status_ = Label(body_, "连接服务端中", 14, 80, 290, 28, kAccent);
-    player_position_ = Label(body_, "00:00", 14, 112, 290, 26, kMuted);
+    player_position_ = Label(body_, "00:00", 14, 107, 290, 24, kMuted);
+    player_seek_slider_ = lv_slider_create(body_);
+    lv_obj_set_pos(player_seek_slider_, 15, 134);
+    lv_obj_set_size(player_seek_slider_, 290, 9);
+    lv_slider_set_range(player_seek_slider_, 0, 1000);
+    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(kBorder), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(kAccent), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(player_seek_slider_, lv_color_hex(kAccent), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(player_seek_slider_, 6, LV_PART_KNOB);
+    lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
+    lv_obj_add_event_cb(player_seek_slider_, OnMediaSeek, LV_EVENT_RELEASED, this);
 
     Button(body_, "上一首", 8, 148, 98, 38, OnMediaPrev, this,
            MATERIAL_SYMBOLS_SKIP_PREVIOUS);
@@ -403,12 +414,13 @@ void PixelTouchUI::BuildPlayer() {
 }
 
 void PixelTouchUI::SetMediaState(const char* state, const char* title,
-                                  int64_t position_ms, int current_index,
-                                  int playlist_length, const char* error) {
+                                  int64_t position_ms, int64_t duration_ms,
+                                  int current_index, int playlist_length, const char* error) {
     media_status_ = state != nullptr ? state : "";
     media_title_ = title != nullptr ? title : "";
     media_error_ = error != nullptr ? error : "";
     media_position_ms_ = position_ms >= 0 ? position_ms : 0;
+    media_duration_ms_ = duration_ms > 0 ? duration_ms : 0;
     media_current_index_ = current_index;
     media_playlist_length_ = playlist_length;
     if (page_ == Page::Player && !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
@@ -466,10 +478,30 @@ void PixelTouchUI::UpdatePlayer() {
     else if (media_status_ == "error") status = "播放发生错误";
     SetIfChanged(player_status_, media_error_.empty() ? status : media_error_.c_str());
     const int64_t seconds = media_position_ms_ / 1000;
-    char position[48];
-    std::snprintf(position, sizeof(position), "进度 %02lld:%02lld",
-                  static_cast<long long>(seconds / 60),
-                  static_cast<long long>(seconds % 60));
+    char position[64];
+    if (media_duration_ms_ > 0) {
+        const int64_t total = media_duration_ms_ / 1000;
+        std::snprintf(position, sizeof(position), "%02lld:%02lld / %02lld:%02lld",
+                      static_cast<long long>(seconds / 60),
+                      static_cast<long long>(seconds % 60),
+                      static_cast<long long>(total / 60),
+                      static_cast<long long>(total % 60));
+        if (player_seek_slider_ != nullptr) {
+            lv_obj_remove_state(player_seek_slider_, LV_STATE_DISABLED);
+            if (!lv_obj_has_state(player_seek_slider_, LV_STATE_PRESSED)) {
+                int ratio = static_cast<int>(std::min<int64_t>(
+                    1000, media_position_ms_ * 1000 / media_duration_ms_));
+                lv_slider_set_value(player_seek_slider_, ratio, LV_ANIM_OFF);
+            }
+        }
+    } else {
+        std::snprintf(position, sizeof(position), "%02lld:%02lld / --:--",
+                      static_cast<long long>(seconds / 60),
+                      static_cast<long long>(seconds % 60));
+        if (player_seek_slider_ != nullptr) {
+            lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
+        }
+    }
     SetIfChanged(player_position_, position);
     if (player_toggle_ != nullptr) {
         auto* label = lv_obj_get_child(player_toggle_, 0);
@@ -850,4 +882,12 @@ void PixelTouchUI::OnPlaylistSelect(lv_event_t* event) {
     if (self->playlist_panel_ != nullptr) {
         lv_obj_add_flag(self->playlist_panel_, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+void PixelTouchUI::OnMediaSeek(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->player_seek_slider_ == nullptr || self->media_duration_ms_ <= 0) return;
+    int ratio = lv_slider_get_value(self->player_seek_slider_);
+    int64_t targetMs = self->media_duration_ms_ * ratio / 1000;
+    Application::GetInstance().SendMediaCommand("seek", -1, targetMs);
 }
