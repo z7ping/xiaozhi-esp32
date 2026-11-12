@@ -209,6 +209,9 @@ void PixelTouchUI::Navigate(Page page) {
     player_status_ = nullptr;
     player_position_ = nullptr;
     player_toggle_ = nullptr;
+    playlist_panel_ = nullptr;
+    playlist_page_label_ = nullptr;
+    for (auto& button : playlist_buttons_) button = nullptr;
     calendar_month_label_ = nullptr;
     calendar_selected_label_ = nullptr;
     calendar_details_popup_ = nullptr;
@@ -377,6 +380,26 @@ void PixelTouchUI::BuildPlayer() {
     if (!child_mode_) {
         Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this, MATERIAL_SYMBOLS_STOP);
     }
+    Button(body_, "列表", 214, 194, 98, 38, OnPlaylistOpen, this,
+           MATERIAL_SYMBOLS_MUSIC_NOTE);
+
+    playlist_panel_ = lv_obj_create(body_);
+    lv_obj_set_pos(playlist_panel_, 10, 35);
+    lv_obj_set_size(playlist_panel_, 300, 201);
+    StylePanel(playlist_panel_, kPanel, kAccent);
+    Label(playlist_panel_, "播放列表", 10, 5, 230, 22, kAccent);
+    Button(playlist_panel_, "", 251, 1, 44, 29, OnPlaylistClose, this,
+           MATERIAL_SYMBOLS_CLOSE);
+
+    for (int i = 0; i < 6; ++i) {
+        playlist_buttons_[i] = Button(playlist_panel_, "", 8, 29 + i * 23,
+                                      284, 23, OnPlaylistSelect, this);
+        lv_obj_add_flag(playlist_buttons_[i], LV_OBJ_FLAG_HIDDEN);
+    }
+    Button(playlist_panel_, "上页", 9, 170, 81, 27, OnPlaylistPrevious, this);
+    playlist_page_label_ = Label(playlist_panel_, "", 108, 173, 91, 24, kMuted);
+    Button(playlist_panel_, "下页", 210, 170, 81, 27, OnPlaylistNext, this);
+    lv_obj_add_flag(playlist_panel_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void PixelTouchUI::SetMediaState(const char* state, const char* title,
@@ -390,6 +413,44 @@ void PixelTouchUI::SetMediaState(const char* state, const char* title,
     media_playlist_length_ = playlist_length;
     if (page_ == Page::Player && !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
         UpdatePlayer();
+        UpdatePlaylist();
+    }
+}
+
+void PixelTouchUI::SetMediaPlaylist(int offset, const std::vector<std::string>& titles) {
+    playlist_offset_ = offset < 0 ? 0 : offset;
+    playlist_count_ = std::min(static_cast<int>(titles.size()), 6);
+    for (int i = 0; i < 6; ++i) {
+        playlist_titles_[i] = i < playlist_count_ ? titles[i] : "";
+    }
+    UpdatePlaylist();
+}
+
+void PixelTouchUI::UpdatePlaylist() {
+    if (playlist_panel_ == nullptr) return;
+    char label[56];
+    std::snprintf(label, sizeof(label), "%d-%d / %d",
+                  playlist_count_ == 0 ? 0 : playlist_offset_ + 1,
+                  playlist_offset_ + playlist_count_,
+                  media_playlist_length_);
+    SetIfChanged(playlist_page_label_, label);
+    for (int i = 0; i < 6; ++i) {
+        auto* button = playlist_buttons_[i];
+        if (button == nullptr) continue;
+        if (i >= playlist_count_) {
+            lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+            continue;
+        }
+        lv_obj_clear_flag(button, LV_OBJ_FLAG_HIDDEN);
+        char caption[140];
+        std::snprintf(caption, sizeof(caption), "%d. %.100s",
+                      playlist_offset_ + i + 1, playlist_titles_[i].c_str());
+        SetIfChanged(lv_obj_get_child(button, 0), caption);
+        lv_obj_set_user_data(button,
+            reinterpret_cast<void*>(static_cast<intptr_t>(playlist_offset_ + i + 1)));
+        const bool selected = media_current_index_ == playlist_offset_ + i;
+        lv_obj_set_style_border_color(button,
+            lv_color_hex(selected ? kAccent : kBorder), 0);
     }
 }
 
@@ -747,4 +808,46 @@ void PixelTouchUI::OnTwilightChanged(lv_event_t* event) {
     Settings settings("pixel_ui", true);
     settings.SetBool("twilight", self->twilight_);
     self->ApplyPalette();
+}
+
+void PixelTouchUI::OnPlaylistOpen(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->playlist_panel_ == nullptr) return;
+    self->playlist_offset_ = 0;
+    self->playlist_count_ = 0;
+    self->UpdatePlaylist();
+    lv_obj_clear_flag(self->playlist_panel_, LV_OBJ_FLAG_HIDDEN);
+    Application::GetInstance().SendMediaCommand("get_playlist", 0);
+}
+void PixelTouchUI::OnPlaylistClose(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->playlist_panel_ != nullptr) {
+        lv_obj_add_flag(self->playlist_panel_, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+void PixelTouchUI::OnPlaylistPrevious(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->playlist_offset_ < 6) return;
+    self->playlist_offset_ -= 6;
+    self->playlist_count_ = 0;
+    self->UpdatePlaylist();
+    Application::GetInstance().SendMediaCommand("get_playlist", self->playlist_offset_);
+}
+void PixelTouchUI::OnPlaylistNext(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    if (self->playlist_offset_ + 6 >= self->media_playlist_length_) return;
+    self->playlist_offset_ += 6;
+    self->playlist_count_ = 0;
+    self->UpdatePlaylist();
+    Application::GetInstance().SendMediaCommand("get_playlist", self->playlist_offset_);
+}
+void PixelTouchUI::OnPlaylistSelect(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    auto* button = lv_event_get_target_obj(event);
+    int index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(button))) - 1;
+    if (index < 0 || index >= self->media_playlist_length_) return;
+    Application::GetInstance().SendMediaCommand("select", index);
+    if (self->playlist_panel_ != nullptr) {
+        lv_obj_add_flag(self->playlist_panel_, LV_OBJ_FLAG_HIDDEN);
+    }
 }
