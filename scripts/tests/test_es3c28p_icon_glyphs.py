@@ -22,12 +22,12 @@ class TestEs3c28pIconGlyphs(unittest.TestCase):
         if font_header is None:
             self.skipTest("resolved 78/xiaozhi-fonts header is absent; ESP-IDF build still required")
         definitions = set(re.findall(
-            r"^#define (MATERIAL_SYMBOLS_[A-Z0-9_]+)\\b",
+            r"^#define (MATERIAL_SYMBOLS_[A-Z0-9_]+)\b",
             font_header.read_text(encoding="utf-8"), re.MULTILINE))
         referenced = set()
         for name in ("pixel_touch_ui.cc", "pixel_robot_display.cc"):
             referenced.update(re.findall(
-                r"\\bMATERIAL_SYMBOLS_[A-Z0-9_]+\\b",
+                r"\bMATERIAL_SYMBOLS_[A-Z0-9_]+\b",
                 (BOARD / name).read_text(encoding="utf-8")))
         self.assertTrue(definitions, "installed icon header has no known glyphs")
         self.assertFalse(referenced - definitions,
