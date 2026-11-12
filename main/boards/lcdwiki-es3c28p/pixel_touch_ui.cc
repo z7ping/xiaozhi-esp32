@@ -101,6 +101,43 @@ lv_obj_t* Button(lv_obj_t* parent, const char* text, int x, int y, int w, int h,
     return button;
 }
 
+// Original V1.1 #book SVG drawn as three native line segments.
+// Only the 18px action glyph and 39px player cover are needed; no bitmap
+// buffers, runtime SVG parser or additional font component.
+void DrawPrototypeBook(lv_obj_t* parent, bool large, int x, int y, uint32_t color) {
+    static const lv_point_precise_t small_left[] = {
+        {9, 4}, {6, 3}, {2, 4}, {2, 15}, {5, 14}, {7, 15}, {9, 17},
+    };
+    static const lv_point_precise_t small_right[] = {
+        {9, 4}, {11, 3}, {14, 3}, {16, 4}, {16, 15}, {13, 14}, {11, 15}, {9, 17},
+    };
+    static const lv_point_precise_t small_spine[] = {{9, 4}, {9, 17}};
+    static const lv_point_precise_t big_left[] = {
+        {19, 10}, {15, 7}, {8, 7}, {4, 8}, {4, 31}, {9, 29}, {14, 29}, {19, 33},
+    };
+    static const lv_point_precise_t big_right[] = {
+        {19, 10}, {24, 7}, {31, 7}, {35, 8}, {35, 31}, {30, 29}, {24, 29}, {19, 33},
+    };
+    static const lv_point_precise_t big_spine[] = {{19, 10}, {19, 33}};
+    const lv_point_precise_t* paths[] = {
+        large ? big_left : small_left,
+        large ? big_right : small_right,
+        large ? big_spine : small_spine,
+    };
+    const uint32_t lengths[] = {
+        large ? 8u : 7u, 8u, 2u,
+    };
+    for (int i = 0; i < 3; ++i) {
+        auto* line = lv_line_create(parent);
+        lv_line_set_points(line, paths[i], lengths[i]);
+        lv_obj_set_pos(line, x, y);
+        lv_obj_set_style_line_color(line, lv_color_hex(color), 0);
+        lv_obj_set_style_line_width(line, large ? 2 : 1, 0);
+        lv_obj_set_style_line_rounded(line, true, 0);
+        lv_obj_clear_flag(line, LV_OBJ_FLAG_CLICKABLE);
+    }
+}
+
 void SetIfChanged(lv_obj_t* label, const char* value) {
     if (label != nullptr && strcmp(lv_label_get_text(label), value) != 0) {
         lv_label_set_text(label, value);
@@ -524,8 +561,9 @@ void PixelTouchUI::BuildHome() {
     lv_obj_clear_flag(indicator, LV_OBJ_FLAG_CLICKABLE);
     Label(body_, "你好，我是天天", 31, 160, 145, 18, kMuted);
 
-    auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this,
-                         MATERIAL_SYMBOLS_HEADPHONES);
+    auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this);
+    lv_obj_align(lv_obj_get_child(story, 0), LV_ALIGN_LEFT_MID, 30, 0);
+    DrawPrototypeBook(story, false, 8, 12, 0x78d9d4);
     auto* song = Button(body_, "听儿歌", 114, 185, 93, 43, OnSong, this,
                         MATERIAL_SYMBOLS_MUSIC_NOTE);
     auto* calendar = Button(body_, "万年历", 214, 185, 93, 43, OnCalendar, this,
@@ -724,13 +762,16 @@ void PixelTouchUI::BuildPlayer() {
     lv_obj_add_flag(cover, LV_OBJ_FLAG_CLICKABLE);
     // Retained legacy queue opens by long-press on the cover.
     lv_obj_add_event_cb(cover, OnPlaylistOpen, LV_EVENT_LONG_PRESSED, this);
-    auto* cover_icon = lv_label_create(cover);
-    lv_label_set_text(cover_icon, player_song_mode_ ?
-                      MATERIAL_SYMBOLS_MUSIC_NOTE : MATERIAL_SYMBOLS_HEADPHONES);
-    auto* theme = static_cast<LvglTheme*>(Board::GetInstance().GetDisplay()->GetTheme());
-    lv_obj_set_style_text_font(cover_icon, theme->icon_font()->font(), 0);
-    lv_obj_set_style_text_color(cover_icon, lv_color_hex(0xe2f2d6), 0);
-    lv_obj_center(cover_icon);
+    if (player_song_mode_) {
+        auto* cover_icon = lv_label_create(cover);
+        lv_label_set_text(cover_icon, MATERIAL_SYMBOLS_MUSIC_NOTE);
+        auto* theme = static_cast<LvglTheme*>(Board::GetInstance().GetDisplay()->GetTheme());
+        lv_obj_set_style_text_font(cover_icon, theme->icon_font()->font(), 0);
+        lv_obj_set_style_text_color(cover_icon, lv_color_hex(0xe2f2d6), 0);
+        lv_obj_center(cover_icon);
+    } else {
+        DrawPrototypeBook(cover, true, 19, 19, 0xe2f2d6);
+    }
 
     player_status_ = Label(body_, "等待播放", 127, 51, 168, 16, 0x83cfc3);
     player_title_ = Label(body_, "暂无播放内容", 115, 73, 186, 29);
