@@ -26,6 +26,7 @@ private:
 
     void Navigate(Page page);
     void QueueNavigate(Page page);
+    static void RunQueuedNavigation(void* data);
     void AttachRobot();
     void DetachRobot();
     void BuildHome();
