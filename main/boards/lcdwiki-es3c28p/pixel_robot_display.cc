@@ -269,12 +269,13 @@ bool PixelRobotDisplay::SetEmotion(const char* emotion) {
 }
 
 void PixelRobotDisplay::SetMediaState(const char* state, const char* title,
-                                      int64_t position_ms, int current_index,
-                                      int playlist_length, const char* error) {
+                                      int64_t position_ms, int64_t duration_ms,
+                                      int current_index, int playlist_length,
+                                      const char* error) {
     DisplayLockGuard lock(this);
     if (touch_ui_ != nullptr) {
-        touch_ui_->SetMediaState(state, title, position_ms, current_index,
-                                 playlist_length, error);
+        touch_ui_->SetMediaState(state, title, position_ms, duration_ms,
+                                 current_index, playlist_length, error);
     }
 }
 
