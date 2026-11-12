@@ -195,7 +195,8 @@ void PixelTouchUI::AttachRobot() {
         return;
     }
     lv_obj_set_parent(robot_area_, robot_slot_);
-    lv_obj_set_size(robot_area_, 104, 124);
+    lv_obj_set_size(robot_area_, page_ == Page::Voice ? 98 : 104,
+                    page_ == Page::Voice ? 98 : 124);
     lv_obj_set_pos(robot_area_, 0, 0);
 }
 
@@ -257,6 +258,7 @@ void PixelTouchUI::Navigate(Page page) {
             break;
         case Page::Voice:
             BuildVoice();
+            AttachRobot();
             break;
         case Page::Calendar:
             BuildCalendar();
@@ -368,35 +370,13 @@ void PixelTouchUI::BuildHome() {
 
 void PixelTouchUI::BuildVoice() {
     BuildHeader("和天天聊天", true);
-    // V1.1: 98px voice ring at (111,47), 78px circular face inset 10px.
-    auto* ring = lv_obj_create(body_);
-    lv_obj_remove_style_all(ring);
-    lv_obj_set_pos(ring, 111, 47);
-    lv_obj_set_size(ring, 98, 98);
-    lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_color(ring, lv_color_hex(0x6ce0d6), 0);
-    lv_obj_set_style_border_width(ring, 2, 0);
-    lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE);
-
-    auto* face = lv_obj_create(body_);
-    lv_obj_remove_style_all(face);
-    lv_obj_set_pos(face, 121, 57);
-    lv_obj_set_size(face, 78, 78);
-    lv_obj_set_style_radius(face, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(face, lv_color_hex(0x173a5b), 0);
-    lv_obj_set_style_bg_opa(face, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(face, LV_OBJ_FLAG_CLICKABLE);
-
-    for (int x : {142, 169}) {
-        auto* eye = lv_obj_create(body_);
-        lv_obj_remove_style_all(eye);
-        lv_obj_set_pos(eye, x, 83);
-        lv_obj_set_size(eye, 9, 13);
-        lv_obj_set_style_radius(eye, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(eye, lv_color_hex(0xaffbf4), 0);
-        lv_obj_set_style_bg_opa(eye, LV_OPA_COVER, 0);
-        lv_obj_clear_flag(eye, LV_OBJ_FLAG_CLICKABLE);
-    }
+    // The same circular mascot is used on Home and Voice. No duplicate face.
+    robot_slot_ = lv_obj_create(body_);
+    lv_obj_remove_style_all(robot_slot_);
+    lv_obj_set_pos(robot_slot_, 111, 47);
+    lv_obj_set_size(robot_slot_, 98, 98);
+    lv_obj_add_flag(robot_slot_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(robot_slot_, OnVoicePrimary, LV_EVENT_CLICKED, this);
 
     voice_title_ = Label(body_, "正在聆听…", 8, 151, 304, 24);
     lv_obj_set_style_text_align(voice_title_, LV_TEXT_ALIGN_CENTER, 0);
