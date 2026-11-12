@@ -361,6 +361,7 @@ void PixelTouchUI::Navigate(Page page) {
     voice_primary_ = nullptr;
     voice_stop_ = nullptr;
     home_day_label_ = nullptr;
+    home_hint_label_ = nullptr;
     home_network_icon_ = nullptr;
     home_battery_case_ = nullptr;
     home_battery_fill_ = nullptr;
@@ -392,6 +393,7 @@ void PixelTouchUI::Navigate(Page page) {
     for (auto& cell : calendar_cells_) cell = nullptr;
     child_mode_switch_ = nullptr;
     settings_foot_ = nullptr;
+    settings_layout_detail_ = nullptr;
     refresh_ticks_ = 0;
 
     switch (page) {
@@ -473,6 +475,7 @@ void PixelTouchUI::LogUiGeometry() const {
         log(".small-date", home_day_label_);
         log(".clock", time_label_);
         log("home-lunar", lunar_label_);
+        log("home-hint-text", home_hint_label_);
         log("@talk", robot_slot_);
     } else if (page_ == Page::Voice) {
         log(".header", lv_obj_get_child(body_, 0));
@@ -508,6 +511,7 @@ void PixelTouchUI::LogUiGeometry() const {
         log("brightness", brightness_slider_ ? lv_obj_get_parent(brightness_slider_) : nullptr);
         log("setting-volume", volume_slider_ ? lv_obj_get_parent(volume_slider_) : nullptr);
         log("setting-foot", settings_foot_);
+        log("settings-layout-detail", settings_layout_detail_);
     }
 }
 #endif
@@ -599,7 +603,7 @@ void PixelTouchUI::BuildHome() {
     lv_obj_set_style_bg_color(indicator, lv_color_hex(0x70dfcb), 0);
     lv_obj_set_style_bg_opa(indicator, LV_OPA_COVER, 0);
     lv_obj_clear_flag(indicator, LV_OBJ_FLAG_CLICKABLE);
-    Label(body_, "你好，我是天天", 31, 165, 145, 16, kMuted);
+    home_hint_label_ = Label(body_, "你好，我是天天", 31, 165, 145, 16, kMuted);
 
     auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this);
     lv_obj_align(lv_obj_get_child(story, 0), LV_ALIGN_LEFT_MID, 30, 0);
@@ -1087,7 +1091,7 @@ void PixelTouchUI::BuildSettings() {
         lv_obj_add_event_cb(slider, OnSliderRelease, LV_EVENT_RELEASED, this);
     }
     Label(body_, "当前布局", 14, 184, 120, 18);
-    Label(body_, "320 × 240 · 横屏", 14, 200, 164, 14, 0x829eb5);
+    settings_layout_detail_ = Label(body_, "320 × 240 · 横屏", 14, 200, 164, 14, 0x829eb5);
     Label(body_, "V1.1", 271, 189, 36, 18, 0x8bd7c7);
     settings_foot_ = Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
                            15, 220, 220, 15, 0x829eb5);
