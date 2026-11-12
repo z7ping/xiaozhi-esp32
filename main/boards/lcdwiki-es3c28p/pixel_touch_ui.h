@@ -22,6 +22,7 @@ public:
                        int64_t duration_ms, int current_index, int playlist_length,
                        const char* error);
     void SetMediaPlaylist(int offset, const std::vector<std::string>& titles);
+    void OnChatMessage(const char* role, const char* content);
 
 private:
     enum class Page { Home, Voice, Calendar, Player, Settings };
@@ -87,6 +88,7 @@ private:
     Page queued_page_ = Page::Home;
     bool media_available_ = false;
     bool player_song_mode_ = false;
+    bool voice_waiting_response_ = false;
     uint32_t media_generation_ = 0;
     std::string media_status_;
     std::string media_title_;
