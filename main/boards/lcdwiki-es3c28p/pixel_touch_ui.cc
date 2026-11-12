@@ -445,16 +445,27 @@ void PixelTouchUI::RefreshVoice() {
 
 void PixelTouchUI::BuildCalendar() {
     BuildHeader("万年历", true);
-    Button(body_, "今天", 261, 35, 53, 28, OnCalendarToday, this);
-    Button(body_, "", 10, 35, 43, 29, OnCalendarPrevious, this,
-           MATERIAL_SYMBOLS_KEYBOARD_ARROW_LEFT);
-    calendar_month_label_ = Label(body_, "", 89, 39, 151, 25, kAccent);
-    Button(body_, "", 210, 35, 43, 29, OnCalendarNext, this,
-           MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT);
+    auto* today_button = Button(body_, "今天", 270, 6, 38, 23,
+                                OnCalendarToday, this);
+    lv_obj_set_style_radius(today_button, 6, 0);
+    lv_obj_set_style_bg_color(today_button, lv_color_hex(0x263f51), 0);
+    auto* previous = Button(body_, "", 13, 38, 35, 26,
+                            OnCalendarPrevious, this,
+                            MATERIAL_SYMBOLS_KEYBOARD_ARROW_LEFT);
+    auto* next = Button(body_, "", 272, 38, 35, 26,
+                        OnCalendarNext, this,
+                        MATERIAL_SYMBOLS_KEYBOARD_ARROW_RIGHT);
+    for (auto* button : {previous, next}) {
+        lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(button, 0, 0);
+    }
+    calendar_month_label_ = Label(body_, "", 89, 40, 142, 21);
+    lv_obj_set_style_text_align(calendar_month_label_, LV_TEXT_ALIGN_CENTER, 0);
 
     static constexpr const char* week[] = {"日", "一", "二", "三", "四", "五", "六"};
     for (int col = 0; col < 7; ++col) {
-        Label(body_, week[col], 23 + col * 43, 68, 28, 19, kMuted);
+        auto* label = Label(body_, week[col], 13 + col * 42, 70, 42, 15, 0x718da6);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     }
     std::time_t now = std::time(nullptr);
     std::tm local{};
@@ -471,15 +482,18 @@ void PixelTouchUI::BuildCalendar() {
     SetIfChanged(calendar_month_label_, month_text);
 
     const int first = WeekdayOfFirst(calendar_year_, calendar_month_);
-    const int days_in_month = DaysInMonth(calendar_year_, calendar_month_);
-    for (int day = 1; day <= days_in_month; ++day) {
-        const int offset = first + day - 1;
-        const int col = offset % 7;
-        const int row = offset / 7;
+    const int days = DaysInMonth(calendar_year_, calendar_month_);
+    const bool six_rows = (first + days) > 35;
+    const int row_height = six_rows ? 17 : 20;
+    for (int day = 1; day <= days; ++day) {
+        const int index = first + day - 1;
+        const int col = index % 7;
+        const int row = index / 7;
         auto* cell = lv_label_create(body_);
         calendar_cells_[day] = cell;
-        lv_obj_set_pos(cell, 9 + col * 43, 89 + row * 18);
-        lv_obj_set_size(cell, 40, 18);
+        lv_obj_set_pos(cell, 18 + col * 42, 87 + row * row_height);
+        lv_obj_set_size(cell, 32, six_rows ? 17 : 19);
+        lv_obj_set_style_radius(cell, 8, 0);
         lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_color(cell, lv_color_hex(kText), 0);
         lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
@@ -488,29 +502,41 @@ void PixelTouchUI::BuildCalendar() {
         char day_text[4];
         std::snprintf(day_text, sizeof(day_text), "%d", day);
         lv_label_set_text(cell, day_text);
-        const bool picked = selected_year_ == calendar_year_ &&
+        const bool selected = selected_year_ == calendar_year_ &&
             selected_month_ == calendar_month_ && selected_day_ == day;
         const bool today = local.tm_year + 1900 == calendar_year_ &&
             local.tm_mon + 1 == calendar_month_ && local.tm_mday == day;
-        if (picked) {
-            lv_obj_set_style_bg_color(cell, lv_color_hex(kAccent), 0);
+        if (selected) {
+            lv_obj_set_style_bg_color(cell, lv_color_hex(0x7ddfd6), 0);
             lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
-            lv_obj_set_style_text_color(cell, lv_color_hex(kBg), 0);
+            lv_obj_set_style_text_color(cell, lv_color_hex(0x0a2533), 0);
         } else if (today) {
-            lv_obj_set_style_border_color(cell, lv_color_hex(kAccent), 0);
+            lv_obj_set_style_border_color(cell, lv_color_hex(0x4c8f91), 0);
             lv_obj_set_style_border_width(cell, 1, 0);
         }
     }
-    calendar_selected_label_ = Label(body_, "", 9, 207, 207, 27, kAccent);
-    Button(body_, "黄历详情", 216, 204, 99, 32, OnCalendarDetail, this);
+
+    auto* footer = lv_obj_create(body_);
+    lv_obj_set_pos(footer, 12, 198);
+    lv_obj_set_size(footer, 296, 34);
+    StylePanel(footer, 0x1a2d44, 0x2b4660);
+    lv_obj_set_style_radius(footer, 9, 0);
+    lv_obj_add_flag(footer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(footer, OnCalendarDetail, LV_EVENT_CLICKED, this);
+    calendar_selected_label_ = Label(footer, "", 11, 2, 180, 16, kText);
+    Label(footer, "查看黄历详情 ›", 195, 8, 92, 19, 0x80dfd2);
+
     calendar_details_popup_ = lv_obj_create(body_);
-    lv_obj_set_pos(calendar_details_popup_, 10, 71);
-    lv_obj_set_size(calendar_details_popup_, 300, 135);
-    StylePanel(calendar_details_popup_, kPanel, kAccent);
-    calendar_date_label_ = Label(calendar_details_popup_, "", 12, 10, 231, 25, kAccent);
-    calendar_detail_label_ = Label(calendar_details_popup_, "", 12, 43, 274, 76, kText);
-    Button(calendar_details_popup_, "", 253, 5, 39, 30, OnCalendarClose, this,
-           MATERIAL_SYMBOLS_CLOSE);
+    lv_obj_set_pos(calendar_details_popup_, 9, 60);
+    lv_obj_set_size(calendar_details_popup_, 302, 173);
+    StylePanel(calendar_details_popup_, 0x1b314b, 0x42647a);
+    lv_obj_set_style_radius(calendar_details_popup_, 12, 0);
+    calendar_date_label_ = Label(calendar_details_popup_, "", 16, 14, 238, 25, kText);
+    Button(calendar_details_popup_, "", 258, 12, 26, 25, OnCalendarClose,
+           this, MATERIAL_SYMBOLS_CLOSE);
+    calendar_detail_label_ = Label(calendar_details_popup_,
+                                    "点击查询选中日期", 16, 47, 267, 105, kMuted);
+    lv_label_set_long_mode(calendar_detail_label_, LV_LABEL_LONG_WRAP);
     lv_obj_add_flag(calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
     RefreshCalendar();
 }
