@@ -1,6 +1,8 @@
 #pragma once
 
 #include <lvgl.h>
+#include <cstdint>
+#include <string>
 
 // Lightweight touch pages for the 320x240 LCDWiki landscape variant.
 // All calls take place under the existing display/LVGL lock.
@@ -12,6 +14,8 @@ public:
     void Show(lv_obj_t* robot_area, lv_obj_t* chat_container);
     void Hide();
     void Refresh();
+    void SetMediaState(const char* state, const char* title, int64_t position_ms,
+                       int current_index, int playlist_length, const char* error);
 
 private:
     enum class Page { Home, Calendar, Player, Settings };
@@ -23,6 +27,7 @@ private:
     void BuildHome();
     void BuildCalendar();
     void BuildPlayer();
+    void UpdatePlayer();
     void BuildSettings();
     void BuildHeader(const char* title);
     void BuildBackButton();
@@ -37,9 +42,20 @@ private:
     static void OnTalk(lv_event_t* event);
     static void OnSliderChange(lv_event_t* event);
     static void OnSliderRelease(lv_event_t* event);
+    static void OnMediaPrev(lv_event_t* event);
+    static void OnMediaToggle(lv_event_t* event);
+    static void OnMediaNext(lv_event_t* event);
+    static void OnMediaStop(lv_event_t* event);
 
     Page page_ = Page::Home;
     Page queued_page_ = Page::Home;
+    std::string media_status_;
+    std::string media_title_;
+    std::string media_error_;
+    int64_t media_position_ms_ = 0;
+    int media_current_index_ = -1;
+    int media_playlist_length_ = 0;
+    uint8_t refresh_ticks_ = 0;
     lv_obj_t* root_ = nullptr;
     lv_obj_t* body_ = nullptr;
     lv_obj_t* robot_area_ = nullptr;
@@ -55,5 +71,9 @@ private:
     lv_obj_t* volume_slider_ = nullptr;
     lv_obj_t* brightness_value_ = nullptr;
     lv_obj_t* volume_value_ = nullptr;
+    lv_obj_t* player_title_ = nullptr;
+    lv_obj_t* player_status_ = nullptr;
+    lv_obj_t* player_position_ = nullptr;
+    lv_obj_t* player_toggle_ = nullptr;
     lv_timer_t* refresh_timer_ = nullptr;
 };
