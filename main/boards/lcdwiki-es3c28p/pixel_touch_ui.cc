@@ -1090,9 +1090,9 @@ void PixelTouchUI::BuildSettings() {
         lv_obj_add_event_cb(slider, OnSliderChange, LV_EVENT_VALUE_CHANGED, this);
         lv_obj_add_event_cb(slider, OnSliderRelease, LV_EVENT_RELEASED, this);
     }
-    Label(body_, "当前布局", 14, 184, 120, 18);
-    settings_layout_detail_ = Label(body_, "320 × 240 · 横屏", 14, 200, 164, 14, 0x829eb5);
-    Label(body_, "V1.1", 271, 189, 36, 18, 0x8bd7c7);
+    Label(body_, "当前布局", 14, 179, 120, 16);
+    settings_layout_detail_ = Label(body_, "320 × 240 · 横屏", 14, 198, 164, 14, 0x829eb5);
+    Label(body_, "V1.1", 271, 184, 36, 18, 0x8bd7c7);
     settings_foot_ = Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
                            15, 220, 220, 15, 0x829eb5);
 }
