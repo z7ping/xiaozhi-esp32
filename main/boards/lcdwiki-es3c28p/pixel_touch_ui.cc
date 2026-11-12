@@ -78,6 +78,7 @@ lv_obj_t* Button(lv_obj_t* parent, const char* text, int x, int y, int w, int h,
     lv_obj_set_size(button, w, h);
     StylePanel(button, kPanel, kBorder);
     lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, user_data);
     lv_obj_t* label = lv_label_create(button);
     lv_label_set_text(label, text);
@@ -122,6 +123,8 @@ PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
     lv_obj_set_pos(body_, 0, 0);
     lv_obj_set_size(body_, 320, 240);
     lv_obj_clear_flag(body_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(body_, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_event_cb(body_, OnGesture, LV_EVENT_GESTURE, this);
 
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
         auto* self = static_cast<PixelTouchUI*>(lv_timer_get_user_data(timer));
@@ -253,6 +256,7 @@ void PixelTouchUI::Navigate(Page page) {
     calendar_details_popup_ = nullptr;
     for (auto& cell : calendar_cells_) cell = nullptr;
     child_mode_switch_ = nullptr;
+    settings_foot_ = nullptr;
     twilight_switch_ = nullptr;
     refresh_ticks_ = 0;
 
@@ -482,6 +486,7 @@ void PixelTouchUI::BuildCalendar() {
         lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_color(cell, lv_color_hex(kText), 0);
         lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(cell, LV_OBJ_FLAG_GESTURE_BUBBLE);
         lv_obj_set_user_data(cell, reinterpret_cast<void*>(static_cast<intptr_t>(day)));
         lv_obj_add_event_cb(cell, OnCalendarDay, LV_EVENT_CLICKED, this);
         char day_text[4];
@@ -852,8 +857,8 @@ void PixelTouchUI::BuildSettings() {
     Label(body_, "当前布局", 14, 184, 120, 18);
     Label(body_, "320 × 240 · 横屏", 14, 200, 164, 14, 0x829eb5);
     Label(body_, "V1.1", 271, 189, 36, 18, 0x8bd7c7);
-    Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
-          15, 212, 220, 16, 0x829eb5);
+    settings_foot_ = Label(body_, child_mode_ ? "儿童模式已开启" : "儿童模式已关闭",
+                           15, 212, 220, 16, 0x829eb5);
 }
 
 void PixelTouchUI::RefreshHome() {
@@ -1036,6 +1041,23 @@ void PixelTouchUI::UpdateSliderValues() {
     }
 }
 
+void PixelTouchUI::OnGesture(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    auto* indev = lv_indev_get_act();
+    if (indev == nullptr) return;
+    const auto direction = lv_indev_get_gesture_dir(indev);
+    if (self->page_ == Page::Home && direction == LV_DIR_LEFT) {
+        self->QueueNavigate(Page::Calendar);
+    } else if (self->page_ == Page::Calendar && direction == LV_DIR_RIGHT) {
+        if (self->calendar_details_popup_ != nullptr &&
+            !lv_obj_has_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN)) {
+            lv_obj_add_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            self->QueueNavigate(Page::Home);
+        }
+    }
+}
+
 void PixelTouchUI::OnSettings(lv_event_t* event) {
     static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Settings);
 }
@@ -1199,6 +1221,8 @@ void PixelTouchUI::OnChildModeChanged(lv_event_t* event) {
     self->child_mode_ = lv_obj_has_state(self->child_mode_switch_, LV_STATE_CHECKED);
     Settings settings("pixel_ui", true);
     settings.SetBool("child_mode", self->child_mode_);
+    SetIfChanged(self->settings_foot_,
+                 self->child_mode_ ? "儿童模式已开启" : "儿童模式已关闭");
 }
 
 void PixelTouchUI::OnTwilightChanged(lv_event_t* event) {
