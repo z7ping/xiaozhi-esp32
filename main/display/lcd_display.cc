@@ -541,7 +541,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_color(emoji_label_, lvgl_theme->text_color(), 0);
     lv_label_set_text(emoji_label_, MATERIAL_SYMBOLS_ROBOT_2);
 #if CONFIG_WEATHER_DASHBOARD
-    SetupDashboard();
+    if (UseLegacyDashboard()) {
+        SetupDashboard();
+    }
 #endif
 }
 #if CONFIG_IDF_TARGET_ESP32P4
@@ -1088,7 +1090,9 @@ void LcdDisplay::SetupUI() {
     lv_obj_center(low_battery_label_);
     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
 #if CONFIG_WEATHER_DASHBOARD
-    SetupDashboard();
+    if (UseLegacyDashboard()) {
+        SetupDashboard();
+    }
 #endif
 }
 
