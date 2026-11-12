@@ -42,14 +42,12 @@ private:
     void UpdatePlaylist();
     void BuildSettings();
     void BuildHeader(const char* title, bool back = false);
-    void BuildBackButton();
     void RefreshHome();
     void RefreshCalendar();
     void UpdateCalendarSelection();
     void ResetCalendarToday();
     void NavigateCalendarMonth(int delta);
     bool IsSelectedToday() const;
-    void ApplyPalette();
     void UpdateSliderValues();
 #if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
     void LogUiGeometry() const;
@@ -59,7 +57,6 @@ private:
     static void OnSettings(lv_event_t* event);
     static void OnHome(lv_event_t* event);
     static void OnCalendar(lv_event_t* event);
-    static void OnPlayer(lv_event_t* event);
     static void OnStory(lv_event_t* event);
     static void OnSong(lv_event_t* event);
     static void OnVolumePopup(lv_event_t* event);
@@ -85,7 +82,6 @@ private:
     static void OnCalendarDetail(lv_event_t* event);
     static void OnCalendarClose(lv_event_t* event);
     static void OnChildModeChanged(lv_event_t* event);
-    static void OnTwilightChanged(lv_event_t* event);
 
     Page page_ = Page::Home;
     Page queued_page_ = Page::Home;
@@ -112,7 +108,6 @@ private:
     int selected_day_ = 0;
     bool calendar_lookup_unavailable_ = false;
     bool child_mode_ = true;
-    bool twilight_ = false;
     lv_obj_t* root_ = nullptr;
     lv_obj_t* body_ = nullptr;
     lv_obj_t* robot_area_ = nullptr;
@@ -127,7 +122,6 @@ private:
     lv_obj_t* voice_primary_ = nullptr;
     lv_obj_t* voice_stop_ = nullptr;
     lv_obj_t* time_label_ = nullptr;
-    lv_obj_t* date_label_ = nullptr;
     lv_obj_t* weather_label_ = nullptr;
     lv_obj_t* lunar_label_ = nullptr;
     lv_obj_t* calendar_date_label_ = nullptr;
@@ -137,13 +131,9 @@ private:
     lv_obj_t* calendar_details_popup_ = nullptr;
     lv_obj_t* child_mode_switch_ = nullptr;
     lv_obj_t* settings_foot_ = nullptr;
-    lv_obj_t* twilight_switch_ = nullptr;
     lv_obj_t* brightness_slider_ = nullptr;
     lv_obj_t* volume_slider_ = nullptr;
-    lv_obj_t* brightness_value_ = nullptr;
-    lv_obj_t* volume_value_ = nullptr;
     lv_obj_t* player_title_ = nullptr;
-    lv_obj_t* player_header_ = nullptr;
     lv_obj_t* player_duration_ = nullptr;
     lv_obj_t* player_volume_popup_ = nullptr;
     lv_obj_t* player_volume_slider_ = nullptr;
@@ -154,8 +144,6 @@ private:
     lv_obj_t* player_toggle_ = nullptr;
     lv_obj_t* player_prev_button_ = nullptr;
     lv_obj_t* player_next_button_ = nullptr;
-    lv_obj_t* player_stop_button_ = nullptr;
-    lv_obj_t* player_list_button_ = nullptr;
     lv_obj_t* playlist_panel_ = nullptr;
     lv_obj_t* playlist_buttons_[6] = {};
     lv_obj_t* playlist_page_label_ = nullptr;
