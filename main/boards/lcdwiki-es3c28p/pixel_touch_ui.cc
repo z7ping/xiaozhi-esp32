@@ -3,6 +3,9 @@
 #include "application.h"
 #include "audio_codec.h"
 #include "board.h"
+#include "display/lvgl_display/lvgl_theme.h"
+
+#include <material_symbols.h>
 
 #if CONFIG_WEATHER_DASHBOARD
 #include "almanac_service.h"
@@ -44,7 +47,7 @@ lv_obj_t* Label(lv_obj_t* parent, const char* text, int x, int y, int w, int h,
 }
 
 lv_obj_t* Button(lv_obj_t* parent, const char* text, int x, int y, int w, int h,
-                 lv_event_cb_t callback, void* user_data) {
+                 lv_event_cb_t callback, void* user_data, const char* icon = nullptr) {
     lv_obj_t* button = lv_obj_create(parent);
     lv_obj_set_pos(button, x, y);
     lv_obj_set_size(button, w, h);
@@ -54,7 +57,21 @@ lv_obj_t* Button(lv_obj_t* parent, const char* text, int x, int y, int w, int h,
     lv_obj_t* label = lv_label_create(button);
     lv_label_set_text(label, text);
     lv_obj_set_style_text_color(label, lv_color_hex(kText), 0);
-    lv_obj_center(label);
+    if (icon != nullptr) {
+        auto* glyph = lv_label_create(button);
+        lv_label_set_text(glyph, icon);
+        auto* theme = static_cast<LvglTheme*>(Board::GetInstance().GetDisplay()->GetTheme());
+        lv_obj_set_style_text_font(glyph, theme->icon_font()->font(), 0);
+        lv_obj_set_style_text_color(glyph, lv_color_hex(kAccent), 0);
+        lv_obj_align(glyph, LV_ALIGN_LEFT_MID, 7, 0);
+        if (text[0] != '\0') {
+            lv_obj_align(label, LV_ALIGN_LEFT_MID, 30, 0);
+        } else {
+            lv_obj_center(glyph);
+        }
+    } else {
+        lv_obj_center(label);
+    }
     return button;
 }
 
@@ -188,12 +205,13 @@ void PixelTouchUI::BuildHeader(const char* title) {
 }
 
 void PixelTouchUI::BuildBackButton() {
-    Button(body_, "返回", 8, 194, 72, 38, OnHome, this);
+    Button(body_, "返回", 8, 194, 92, 38, OnHome, this,
+           MATERIAL_SYMBOLS_ARROW_BACK);
 }
 
 void PixelTouchUI::BuildHome() {
     BuildHeader("TIAN TIAN / OS");
-    Button(body_, "设置", 252, 1, 66, 30, OnSettings, this);
+    Button(body_, "", 270, 1, 48, 30, OnSettings, this, MATERIAL_SYMBOLS_SETTINGS);
 
     Label(body_, "HELLO, TIAN TIAN", 12, 43, 165, 24, kMuted);
     time_label_ = Label(body_, "--:--", 12, 72, 170, 42);
@@ -204,9 +222,12 @@ void PixelTouchUI::BuildHome() {
     robot_slot_ = Button(body_, "", 194, 40, 116, 104, OnTalk, this);
     Label(body_, "点我说话", 205, 153, 102, 27, kAccent);
 
-    Button(body_, "听故事", 8, 199, 98, 38, OnPlayer, this);
-    Button(body_, "听儿歌", 111, 199, 98, 38, OnPlayer, this);
-    Button(body_, "万年历", 214, 199, 98, 38, OnCalendar, this);
+    Button(body_, "听故事", 8, 199, 98, 38, OnPlayer, this,
+           MATERIAL_SYMBOLS_HEADPHONES);
+    Button(body_, "听儿歌", 111, 199, 98, 38, OnPlayer, this,
+           MATERIAL_SYMBOLS_MUSIC_NOTE);
+    Button(body_, "万年历", 214, 199, 98, 38, OnCalendar, this,
+           MATERIAL_SYMBOLS_CALENDAR_MONTH);
 }
 
 void PixelTouchUI::BuildCalendar() {
