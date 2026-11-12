@@ -521,7 +521,7 @@ void PixelTouchUI::BuildHome() {
     Label(body_, "你好，我是天天", 31, 160, 145, 18, kMuted);
 
     auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnStory, this,
-                         MATERIAL_SYMBOLS_BOOK);
+                         MATERIAL_SYMBOLS_HEADPHONES);
     auto* song = Button(body_, "听儿歌", 114, 185, 93, 43, OnSong, this,
                         MATERIAL_SYMBOLS_MUSIC_NOTE);
     auto* calendar = Button(body_, "万年历", 214, 185, 93, 43, OnCalendar, this,
@@ -720,7 +720,7 @@ void PixelTouchUI::BuildPlayer() {
     lv_obj_add_event_cb(cover, OnPlaylistOpen, LV_EVENT_LONG_PRESSED, this);
     auto* cover_icon = lv_label_create(cover);
     lv_label_set_text(cover_icon, player_song_mode_ ?
-                      MATERIAL_SYMBOLS_MUSIC_NOTE : MATERIAL_SYMBOLS_BOOK);
+                      MATERIAL_SYMBOLS_MUSIC_NOTE : MATERIAL_SYMBOLS_HEADPHONES);
     auto* theme = static_cast<LvglTheme*>(Board::GetInstance().GetDisplay()->GetTheme());
     lv_obj_set_style_text_font(cover_icon, theme->icon_font()->font(), 0);
     lv_obj_set_style_text_color(cover_icon, lv_color_hex(0xe2f2d6), 0);
