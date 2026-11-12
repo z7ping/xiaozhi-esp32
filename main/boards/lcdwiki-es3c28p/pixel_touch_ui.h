@@ -74,6 +74,7 @@ private:
 
     Page page_ = Page::Home;
     Page queued_page_ = Page::Home;
+    bool media_available_ = false;
     std::string media_status_;
     std::string media_title_;
     std::string media_error_;
@@ -120,6 +121,10 @@ private:
     lv_obj_t* player_position_ = nullptr;
     lv_obj_t* player_seek_slider_ = nullptr;
     lv_obj_t* player_toggle_ = nullptr;
+    lv_obj_t* player_prev_button_ = nullptr;
+    lv_obj_t* player_next_button_ = nullptr;
+    lv_obj_t* player_stop_button_ = nullptr;
+    lv_obj_t* player_list_button_ = nullptr;
     lv_obj_t* playlist_panel_ = nullptr;
     lv_obj_t* playlist_buttons_[6] = {};
     lv_obj_t* playlist_page_label_ = nullptr;
