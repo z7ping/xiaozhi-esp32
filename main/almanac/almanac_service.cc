@@ -7,6 +7,7 @@
 #include <esp_log.h>
 
 #include <cstdio>
+#include <algorithm>
 #include <exception>
 
 #define TAG "AlmanacService"
@@ -15,6 +16,7 @@ namespace {
 enum NotifyBits {
     kNotifyKeyUpdated = 1 << 0,
     kNotifyNetwork = 1 << 1,
+    kNotifyDateLookup = 1 << 2,
 };
 constexpr uint32_t kRetryIntervalMs = 60 * 1000;
 constexpr uint32_t kWaitForClockMs = 10 * 1000;
@@ -75,6 +77,92 @@ AlmanacSnapshot AlmanacService::GetSnapshot() {
     return snapshot_;
 }
 
+bool AlmanacService::RequestDate(int year, int month, int day) {
+    // Validate without mktime() normalization so invalid dates are rejected.
+    if (year < kMinYear || year > 2099 || month < 1 || month > 12 || day < 1) {
+        return false;
+    }
+    static constexpr int month_days[] =
+        {31,28,31,30,31,30,31,31,30,31,30,31};
+    int max_day = month_days[month - 1];
+    if (month == 2 && year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+        max_day = 29;
+    }
+    if (day > max_day || task_ == nullptr) {
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (date_result_.year == year && date_result_.month == month &&
+            date_result_.day == day && (date_result_.loading || date_result_.ready)) {
+            return true;
+        }
+        date_result_ = {};
+        date_result_.year = year;
+        date_result_.month = month;
+        date_result_.day = day;
+        date_result_.loading = true;
+        date_lookup_pending_ = true;
+    }
+    xTaskNotify(task_, kNotifyDateLookup, eSetBits);
+    return true;
+}
+
+AlmanacDateResult AlmanacService::GetDateResult() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return date_result_;
+}
+
+void AlmanacService::ProcessDateLookup() {
+    AlmanacDateResult request;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!date_lookup_pending_) return;
+        date_lookup_pending_ = false;
+        request = date_result_;
+    }
+
+    AlmanacDateResult result = request;
+    result.loading = false;
+    if (!network_connected_) {
+        result.failed = true;
+    } else {
+        const std::string key = key_store_.GetKey();
+        if (key.empty()) {
+            result.failed = true;
+        } else {
+            char date[40];
+            std::snprintf(date, sizeof(date), "%d-%d-%d",
+                          request.year, request.month, request.day);
+            const auto response = HttpGet(std::string(kDayUrl) + "?date=" + date + "&key=" + key, 10000);
+            const AlmanacData parsed = ParseCalendarDay(response.body, response.status);
+            if (parsed.ok) {
+                result.ready = true;
+                result.snapshot.valid = true;
+                result.snapshot.lunar_date = parsed.lunar_date;
+                result.snapshot.festival = parsed.festival;
+                result.snapshot.solar_term = GetSolarTerm(request.year, request.month, request.day);
+                result.snapshot.yi = parsed.yi;
+                result.snapshot.ji = parsed.ji;
+                result.snapshot.updated_at = time(nullptr);
+            } else {
+                result.failed = true;
+                result.credentials_invalid = parsed.credentials_invalid;
+                result.quota_exceeded = parsed.quota_exceeded;
+            }
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // A different day may have been requested while HTTP was in flight.
+        if (date_result_.year == request.year && date_result_.month == request.month &&
+            date_result_.day == request.day) {
+            date_result_ = std::move(result);
+        }
+    }
+}
+
 void AlmanacService::SetUpdateCallback(std::function<void()> callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     update_callback_ = std::move(callback);
@@ -93,9 +181,10 @@ void AlmanacService::Publish(const AlmanacSnapshot& snapshot) {
 }
 
 void AlmanacService::TaskLoop() {
-    auto wait = [](uint32_t ms) {
+    auto wait = [this](uint32_t ms) {
         uint32_t received = 0;
         xTaskNotifyWait(0, 0xffffffff, &received, pdMS_TO_TICKS(ms));
+        if (received & kNotifyDateLookup) ProcessDateLookup();
         return received;
     };
 
