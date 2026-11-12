@@ -32,6 +32,7 @@ private:
     void BuildHome();
     void BuildCalendar();
     void BuildPlayer();
+    void SyncMediaAvailability();
     void UpdatePlayer();
     void UpdatePlaylist();
     void BuildSettings();
@@ -75,6 +76,7 @@ private:
     Page page_ = Page::Home;
     Page queued_page_ = Page::Home;
     bool media_available_ = false;
+    uint32_t media_generation_ = 0;
     std::string media_status_;
     std::string media_title_;
     std::string media_error_;

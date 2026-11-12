@@ -118,9 +118,9 @@ PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
     lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 
     body_ = lv_obj_create(root_);
+    lv_obj_remove_style_all(body_);
     lv_obj_set_pos(body_, 0, 0);
     lv_obj_set_size(body_, 320, 240);
-    lv_obj_remove_style_all(body_);
     lv_obj_clear_flag(body_, LV_OBJ_FLAG_SCROLLABLE);
 
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
@@ -434,6 +434,10 @@ void PixelTouchUI::BuildPlayer() {
 void PixelTouchUI::SetMediaState(const char* state, const char* title,
                                   int64_t position_ms, int64_t duration_ms,
                                   int current_index, int playlist_length, const char* error) {
+    // Clear old-session data before storing the first state of a new session.
+    SyncMediaAvailability();
+    if (!media_available_)
+        return;
     media_status_ = state != nullptr ? state : "";
     media_title_ = title != nullptr ? title : "";
     media_error_ = error != nullptr ? error : "";
@@ -448,6 +452,7 @@ void PixelTouchUI::SetMediaState(const char* state, const char* title,
 }
 
 void PixelTouchUI::SetMediaPlaylist(int offset, const std::vector<std::string>& titles) {
+    SyncMediaAvailability();
     // Ignore stale responses after a rapid page change or closing the overlay.
     if (page_ != Page::Player || playlist_panel_ == nullptr ||
         lv_obj_has_flag(playlist_panel_, LV_OBJ_FLAG_HIDDEN) ||
@@ -488,10 +493,11 @@ void PixelTouchUI::UpdatePlaylist() {
     }
 }
 
-void PixelTouchUI::UpdatePlayer() {
-    if (player_title_ == nullptr) return;
-    const bool supported = Application::GetInstance().IsMediaControlAvailable();
-    if (supported != media_available_) {
+void PixelTouchUI::SyncMediaAvailability() {
+    auto& app = Application::GetInstance();
+    const bool supported = app.IsMediaControlAvailable();
+    const uint32_t generation = app.GetMediaControlGeneration();
+    if (supported != media_available_ || (supported && generation != media_generation_)) {
         // Do not reuse playback/queue data across a reconnect or downgrade.
         media_available_ = supported;
         media_status_.clear();
@@ -507,6 +513,15 @@ void PixelTouchUI::UpdatePlayer() {
             lv_obj_add_flag(playlist_panel_, LV_OBJ_FLAG_HIDDEN);
         }
     }
+    media_generation_ = generation;
+}
+
+void PixelTouchUI::UpdatePlayer() {
+    if (player_title_ == nullptr)
+        return;
+    SyncMediaAvailability();
+    const auto connection = Application::GetInstance().GetMediaControlState();
+    const bool supported = connection == MediaControlState::kAvailable;
     for (auto* control : {player_prev_button_, player_toggle_, player_next_button_,
                           player_stop_button_, player_list_button_}) {
         if (control == nullptr) continue;
@@ -515,7 +530,9 @@ void PixelTouchUI::UpdatePlayer() {
     }
     if (!supported) {
         SetIfChanged(player_title_, "请通过语音播放故事或儿歌");
-        SetIfChanged(player_status_, "服务端未声明触摸播放控制");
+        SetIfChanged(player_status_, connection == MediaControlState::kDisconnected
+                                         ? "未连接对话服务"
+                                         : "服务端未声明触摸播放控制");
         SetIfChanged(player_position_, "--:-- / --:--");
         if (player_seek_slider_ != nullptr) {
             lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
@@ -806,11 +823,11 @@ void PixelTouchUI::Refresh() {
 void PixelTouchUI::UpdateSliderValues() {
     char text[8];
     if (brightness_slider_ != nullptr) {
-        std::snprintf(text, sizeof(text), "%d%%", lv_slider_get_value(brightness_slider_));
+        std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(lv_slider_get_value(brightness_slider_)));
         SetIfChanged(brightness_value_, text);
     }
     if (volume_slider_ != nullptr) {
-        std::snprintf(text, sizeof(text), "%d%%", lv_slider_get_value(volume_slider_));
+        std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(lv_slider_get_value(volume_slider_)));
         SetIfChanged(volume_value_, text);
     }
 }

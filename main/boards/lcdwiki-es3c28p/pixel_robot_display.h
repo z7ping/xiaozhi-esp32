@@ -4,7 +4,7 @@
 
 #if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE && CONFIG_USE_WECHAT_MESSAGE_STYLE
 
-class PixelTouchUI;
+#include "pixel_touch_ui.h"
 
 class PixelRobotDisplay : public SpiLcdDisplay {
 public:

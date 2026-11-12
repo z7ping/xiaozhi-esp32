@@ -289,6 +289,7 @@ void Application::Run() {
 
         if (bits & MAIN_EVENT_CLOCK_TICK) {
             clock_ticks_++;
+            RefreshMediaControlState();
             auto display = Board::GetInstance().GetDisplay();
             display->UpdateStatusBar();
 
@@ -341,6 +342,7 @@ void Application::HandleNetworkConnectedEvent() {
 }
 
 void Application::HandleNetworkDisconnectedEvent() {
+    media_control_state_.store(MediaControlState::kDisconnected);
     // Close current conversation when network disconnected
     auto state = GetDeviceState();
     if (state == kDeviceStateNotifying) {
@@ -600,6 +602,7 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelOpened([this, codec, &board]() {
+        media_control_generation_.fetch_add(1);
         board.SetPowerSaveLevel(PowerSaveLevel::PERFORMANCE);
         if (protocol_->server_sample_rate() != codec->output_sample_rate()) {
             ESP_LOGW(TAG,
@@ -610,6 +613,7 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelClosed([this, &board]() {
+        media_control_state_.store(MediaControlState::kDisconnected);
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         Schedule([this]() {
             auto display = Board::GetInstance().GetDisplay();
@@ -935,6 +939,8 @@ void Application::ContinueOpenAudioChannel(ListeningMode mode) {
         }
     }
 
+    RefreshMediaControlState();
+
     SetListeningMode(mode);
 }
 
@@ -1071,6 +1077,8 @@ void Application::ContinueWakeWordInvoke(const std::string& wake_word) {
             return;
         }
     }
+
+    RefreshMediaControlState();
 
     ESP_LOGI(TAG, "Wake word detected: %s", wake_word.c_str());
 #if CONFIG_SEND_WAKE_WORD_DATA
@@ -1364,6 +1372,7 @@ ListeningMode Application::GetDefaultListeningMode() const {
 
 void Application::Reboot() {
     ESP_LOGI(TAG, "Rebooting...");
+    media_control_state_.store(MediaControlState::kDisconnected);
     if (GetDeviceState() == kDeviceStateNotifying) {
         StopNotification();
     }
@@ -1503,9 +1512,18 @@ void Application::SendMcpMessage(const std::string& payload) {
     });
 }
 
-bool Application::IsMediaControlAvailable() const {
-    return protocol_ && protocol_->SupportsMediaControl() &&
-           protocol_->IsAudioChannelOpened();
+void Application::RefreshMediaControlState() {
+    // Protocol construction runs on the activation task; only inspect its
+    // pointer on the main task after activation has completed.
+    const auto state = GetDeviceState();
+    if (!startup_completed_ || state == kDeviceStateActivating || state == kDeviceStateStarting ||
+        state == kDeviceStateWifiConfiguring || !protocol_ || !protocol_->IsAudioChannelOpened()) {
+        media_control_state_.store(MediaControlState::kDisconnected);
+    } else if (!protocol_->SupportsMediaControl()) {
+        media_control_state_.store(MediaControlState::kUnsupported);
+    } else {
+        media_control_state_.store(MediaControlState::kAvailable);
+    }
 }
 
 void Application::SendMediaCommand(const std::string& action, int index, int64_t position_ms) {
@@ -1513,6 +1531,7 @@ void Application::SendMediaCommand(const std::string& action, int index, int64_t
     // dispatched: the connection can close after the touch callback.
     if (!IsMediaControlAvailable()) return;
     Schedule([this, action, index, position_ms]() {
+        RefreshMediaControlState();
         if (IsMediaControlAvailable()) {
             protocol_->SendMediaControl(action, index, position_ms);
         }
@@ -1550,6 +1569,7 @@ void Application::PlaySound(const std::string_view& sound) { audio_service_.Play
 
 void Application::ResetProtocol() {
     Schedule([this]() {
+        media_control_state_.store(MediaControlState::kDisconnected);
         if (GetDeviceState() == kDeviceStateNotifying) {
             StopNotification();
         }

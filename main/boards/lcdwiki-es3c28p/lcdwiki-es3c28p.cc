@@ -112,8 +112,13 @@ private:
     void InitializeTouch() {
         esp_lcd_touch_handle_t tp = nullptr;
         esp_lcd_touch_config_t tp_cfg = {
+#if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE
+            .x_max = DISPLAY_HEIGHT,
+            .y_max = DISPLAY_WIDTH,
+#else
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
+#endif
             .rst_gpio_num = TOUCH_RST_PIN,
             .int_gpio_num = TOUCH_INT_PIN,
             .levels =
@@ -121,13 +126,18 @@ private:
                     .reset = 0,
                     .interrupt = 0,
                 },
-            // The panel is mounted so that the touch origin matches the mirrored
-            // display; keep both in sync with DISPLAY_MIRROR_* above.
+            // The touch driver mirrors raw coordinates before swapping axes.
             .flags =
                 {
+#if CONFIG_LCDWIKI_ES3C28P_LANDSCAPE
+                    .swap_xy = true,
+                    .mirror_x = false,
+                    .mirror_y = true,
+#else
                     .swap_xy = DISPLAY_SWAP_XY,
                     .mirror_x = DISPLAY_MIRROR_X,
                     .mirror_y = DISPLAY_MIRROR_Y,
+#endif
                 },
         };
 

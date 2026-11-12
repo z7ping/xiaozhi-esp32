@@ -6,12 +6,13 @@
 #include <freertos/task.h>
 #include <esp_timer.h>
 
-#include <string>
-#include <mutex>
-#include <deque>
-#include <memory>
-#include <functional>
+#include <atomic>
 #include <cstdint>
+#include <deque>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <vector>
 
 #include "protocol.h"
@@ -42,6 +43,12 @@ enum AecMode {
     kAecOff,
     kAecOnDeviceSide,
     kAecOnServerSide,
+};
+
+enum class MediaControlState {
+    kDisconnected,
+    kUnsupported,
+    kAvailable,
 };
 
 class Application {
@@ -116,7 +123,11 @@ public:
     // UI -> existing device control channel, scheduled on the main task.
     void SendMediaCommand(const std::string& action, int index = -1,
                           int64_t position_ms = -1);
-    bool IsMediaControlAvailable() const;
+    MediaControlState GetMediaControlState() const { return media_control_state_.load(); }
+    uint32_t GetMediaControlGeneration() const { return media_control_generation_.load(); }
+    bool IsMediaControlAvailable() const {
+        return GetMediaControlState() == MediaControlState::kAvailable;
+    }
     void RegisterMcpBroadcastCallback(std::function<void(const std::string&)> callback);
     void SetAecMode(AecMode mode);
     AecMode GetAecMode() const { return aec_mode_; }
@@ -137,6 +148,8 @@ private:
     std::mutex mutex_;
     std::deque<std::function<void()>> main_tasks_;
     std::unique_ptr<Protocol> protocol_;
+    std::atomic<MediaControlState> media_control_state_{MediaControlState::kDisconnected};
+    std::atomic<uint32_t> media_control_generation_{0};
     EventGroupHandle_t event_group_ = nullptr;
     esp_timer_handle_t clock_timer_handle_ = nullptr;
     esp_timer_handle_t startup_wake_word_hint_timer_ = nullptr;
@@ -170,6 +183,7 @@ private:
     void HandleStopListeningEvent();
     void HandleNetworkConnectedEvent();
     void HandleNetworkDisconnectedEvent();
+    void RefreshMediaControlState();
     void HandleActivationDoneEvent();
     void HandleWakeWordDetectedEvent();
     void ContinueOpenAudioChannel(ListeningMode mode);
