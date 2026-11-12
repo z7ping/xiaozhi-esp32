@@ -235,23 +235,22 @@ bool PixelRobotDisplay::SetEmotion(const char* emotion) {
 
 #if CONFIG_WEATHER_DASHBOARD
 void PixelRobotDisplay::ShowDashboard() {
-    DisplayLockGuard lock(this);
-    if (touch_ui_ != nullptr && robot_area_ != nullptr) {
-        // Show the real touch home instead of a second permanently visible
-        // dashboard. Weather/Almanac services remain shared and unchanged.
-        touch_ui_->Show(robot_area_, container_);
-    } else {
+    if (touch_ui_ == nullptr || robot_area_ == nullptr) {
         SpiLcdDisplay::ShowDashboard();
+        return;
     }
+    DisplayLockGuard lock(this);
+    // Preserve existing weather/almanac services; replace only the idle view.
+    touch_ui_->Show(robot_area_, container_);
 }
 
 void PixelRobotDisplay::HideDashboard() {
-    DisplayLockGuard lock(this);
-    if (touch_ui_ != nullptr) {
-        touch_ui_->Hide();
-    } else {
+    if (touch_ui_ == nullptr) {
         SpiLcdDisplay::HideDashboard();
+        return;
     }
+    DisplayLockGuard lock(this);
+    touch_ui_->Hide();
 }
 #endif
 
