@@ -505,6 +505,7 @@ void MqttProtocol::ParseServerHello(const cJSON* root) {
         local_sequence_ = 0;
         remote_sequence_ = 0;
     }
+    ParseServerCapabilities(root);
     xEventGroupSetBits(event_group_handle_, MQTT_PROTOCOL_SERVER_HELLO_EVENT);
 }
 
