@@ -72,7 +72,7 @@ private:
     uint8_t refresh_ticks_ = 0;
     int calendar_year_ = 0;
     int calendar_month_ = 0;
-    int calendar_day_ = 0;
+    lv_obj_t* calendar_cells_[32] = {};
     int selected_year_ = 0;
     int selected_month_ = 0;
     int selected_day_ = 0;
