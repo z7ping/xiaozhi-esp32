@@ -723,6 +723,7 @@ void Application::InitializeProtocol() {
             if (!cJSON_IsString(state)) return;
             auto title = cJSON_GetObjectItem(root, "title");
             auto position = cJSON_GetObjectItem(root, "position_ms");
+            auto duration = cJSON_GetObjectItem(root, "duration_ms");
             auto index = cJSON_GetObjectItem(root, "current_index");
             auto length = cJSON_GetObjectItem(root, "playlist_length");
             auto error = cJSON_GetObjectItem(root, "error");
@@ -732,6 +733,8 @@ void Application::InitializeProtocol() {
                 cJSON_IsNumber(position) && position->valuedouble >= 0
                     ? static_cast<int64_t>(position->valuedouble)
                     : 0;
+            int64_t duration_ms = cJSON_IsNumber(duration) && duration->valuedouble > 0
+                ? static_cast<int64_t>(duration->valuedouble) : 0;
             int current_index = cJSON_IsNumber(index) ? index->valueint : -1;
             int playlist_length = cJSON_IsNumber(length) ? length->valueint : 0;
             auto page = cJSON_GetObjectItem(root, "page_offset");
@@ -753,11 +756,11 @@ void Application::InitializeProtocol() {
             Schedule([display, media_state = std::string(state->valuestring),
                       media_title = std::string(title_str, strnlen(title_str, 192)),
                       media_error = std::string(error_str, strnlen(error_str, 128)),
-                      position_ms, current_index, playlist_length,
+                      position_ms, duration_ms, current_index, playlist_length,
                       has_page, page_offset,
                       playlist_titles = std::move(playlist_titles)]() {
                 display->SetMediaState(media_state.c_str(), media_title.c_str(),
-                                       position_ms, current_index, playlist_length,
+                                       position_ms, duration_ms, current_index, playlist_length,
                                        media_error.c_str());
                 if (has_page) {
                     display->SetMediaPlaylist(page_offset, playlist_titles);
