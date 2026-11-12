@@ -725,13 +725,11 @@ void PixelTouchUI::SyncMediaAvailability() {
 }
 
 void PixelTouchUI::UpdatePlayer() {
-    if (player_title_ == nullptr)
-        return;
+    if (player_title_ == nullptr) return;
     SyncMediaAvailability();
     const auto connection = Application::GetInstance().GetMediaControlState();
     const bool supported = connection == MediaControlState::kAvailable;
-    for (auto* control : {player_prev_button_, player_toggle_, player_next_button_,
-                          player_stop_button_, player_list_button_}) {
+    for (auto* control : {player_prev_button_, player_toggle_, player_next_button_}) {
         if (control == nullptr) continue;
         if (supported) lv_obj_remove_state(control, LV_STATE_DISABLED);
         else lv_obj_add_state(control, LV_STATE_DISABLED);
@@ -739,58 +737,59 @@ void PixelTouchUI::UpdatePlayer() {
     if (!supported) {
         SetIfChanged(player_title_, "请通过语音播放故事或儿歌");
         SetIfChanged(player_status_, connection == MediaControlState::kDisconnected
-                                         ? "未连接对话服务"
-                                         : "服务端未声明触摸播放控制");
-        SetIfChanged(player_position_, "--:-- / --:--");
+                                       ? "未连接对话服务"
+                                       : "服务端未声明触摸播放控制");
+        SetIfChanged(player_position_, "--:--");
+        SetIfChanged(player_duration_, "--:--");
         if (player_seek_slider_ != nullptr) {
             lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
             lv_slider_set_value(player_seek_slider_, 0, LV_ANIM_OFF);
         }
         return;
     }
-    SetIfChanged(player_title_, media_title_.empty() ? "暂无播放内容"
-                                                     : media_title_.c_str());
-    const char* status = "尚无播放数据";
+    SetIfChanged(player_title_, media_title_.empty() ? "暂无播放内容" : media_title_.c_str());
+    const char* status = "等待播放";
     if (media_status_ == "playing") status = "正在播放";
     else if (media_status_ == "paused") status = "已暂停";
     else if (media_status_ == "stopped") status = "已停止";
-    else if (media_status_ == "idle") status = "等待播放";
     else if (media_status_ == "error") status = "播放发生错误";
     SetIfChanged(player_status_, media_error_.empty() ? status : media_error_.c_str());
     const int64_t seconds = media_position_ms_ / 1000;
-    char position[64];
+    char current[32];
+    std::snprintf(current, sizeof(current), "%02lld:%02lld",
+                  static_cast<long long>(seconds / 60),
+                  static_cast<long long>(seconds % 60));
+    SetIfChanged(player_position_, current);
     if (media_duration_ms_ > 0) {
         const int64_t total = media_duration_ms_ / 1000;
-        std::snprintf(position, sizeof(position), "%02lld:%02lld / %02lld:%02lld",
-                      static_cast<long long>(seconds / 60),
-                      static_cast<long long>(seconds % 60),
+        char duration[32];
+        std::snprintf(duration, sizeof(duration), "%02lld:%02lld",
                       static_cast<long long>(total / 60),
                       static_cast<long long>(total % 60));
+        SetIfChanged(player_duration_, duration);
         if (player_seek_slider_ != nullptr) {
-            if (media_duration_ms_ <= 2LL * 60 * 60 * 1000) {
+            if (media_duration_ms_ <= 2LL * 60 * 60 * 1000)
                 lv_obj_remove_state(player_seek_slider_, LV_STATE_DISABLED);
-            } else {
-                // Server bounds generic decoded-frame Seek to two hours.
+            else
                 lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
-            }
             if (!lv_obj_has_state(player_seek_slider_, LV_STATE_PRESSED)) {
-                int ratio = static_cast<int>(std::min<int64_t>(
+                const int ratio = static_cast<int>(std::min<int64_t>(
                     1000, media_position_ms_ * 1000 / media_duration_ms_));
                 lv_slider_set_value(player_seek_slider_, ratio, LV_ANIM_OFF);
             }
         }
     } else {
-        std::snprintf(position, sizeof(position), "%02lld:%02lld / --:--",
-                      static_cast<long long>(seconds / 60),
-                      static_cast<long long>(seconds % 60));
+        SetIfChanged(player_duration_, "--:--");
         if (player_seek_slider_ != nullptr) {
             lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
+            lv_slider_set_value(player_seek_slider_, 0, LV_ANIM_OFF);
         }
     }
-    SetIfChanged(player_position_, position);
     if (player_toggle_ != nullptr) {
-        auto* label = lv_obj_get_child(player_toggle_, 0);
-        SetIfChanged(label, media_status_ == "playing" ? "暂停" : "播放");
+        // Button child 0 is text, child 1 is the approved icon glyph.
+        SetIfChanged(lv_obj_get_child(player_toggle_, 1),
+                     media_status_ == "playing" ?
+                         MATERIAL_SYMBOLS_PAUSE : MATERIAL_SYMBOLS_PLAY_ARROW);
     }
 }
 
