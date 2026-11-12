@@ -278,6 +278,11 @@ void PixelRobotDisplay::SetMediaState(const char* state, const char* title,
     }
 }
 
+void PixelRobotDisplay::SetMediaPlaylist(int offset, const std::vector<std::string>& titles) {
+    DisplayLockGuard lock(this);
+    if (touch_ui_) touch_ui_->SetMediaPlaylist(offset, titles);
+}
+
 #if CONFIG_WEATHER_DASHBOARD
 void PixelRobotDisplay::ShowDashboard() {
     if (touch_ui_ == nullptr || robot_area_ == nullptr) {
