@@ -17,7 +17,8 @@ public:
     void Hide();
     void Refresh();
     void SetMediaState(const char* state, const char* title, int64_t position_ms,
-                       int current_index, int playlist_length, const char* error);
+                       int64_t duration_ms, int current_index, int playlist_length,
+                       const char* error);
     void SetMediaPlaylist(int offset, const std::vector<std::string>& titles);
 
 private:
