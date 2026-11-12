@@ -122,7 +122,7 @@ void PixelTouchUI::Show(lv_obj_t* robot_area, lv_obj_t* chat_container) {
     robot_area_ = robot_area;
     chat_container_ = chat_container;
     lv_obj_clear_flag(root_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_move_foreground(root_);
+    lv_obj_move_to_index(root_, lv_obj_get_child_count(lv_obj_get_parent(root_)) - 1);
     Navigate(Page::Home);
     lv_timer_resume(refresh_timer_);
 }
@@ -192,7 +192,9 @@ void PixelTouchUI::QueueNavigate(Page page) {
     // Do not delete the clicked LVGL object while its event is being dispatched.
     lv_async_call([](void* data) {
         auto* self = static_cast<PixelTouchUI*>(data);
-        self->Navigate(self->queued_page_);
+        if (!lv_obj_has_flag(self->root_, LV_OBJ_FLAG_HIDDEN)) {
+            self->Navigate(self->queued_page_);
+        }
     }, this);
 }
 
