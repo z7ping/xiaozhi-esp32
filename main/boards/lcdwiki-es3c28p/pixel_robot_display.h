@@ -31,6 +31,9 @@ private:
     lv_obj_t* pupils_[2] = {nullptr, nullptr};
     lv_obj_t* mouth_ = nullptr;
     lv_timer_t* blink_timer_ = nullptr;
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    lv_timer_t* resource_timer_ = nullptr;
+#endif
     bool blinking_ = false;
 };
 
