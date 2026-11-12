@@ -1503,9 +1503,17 @@ void Application::SendMcpMessage(const std::string& payload) {
     });
 }
 
+bool Application::IsMediaControlAvailable() const {
+    return protocol_ && protocol_->SupportsMediaControl() &&
+           protocol_->IsAudioChannelOpened();
+}
+
 void Application::SendMediaCommand(const std::string& action, int index, int64_t position_ms) {
+    // Do not send unsupported media messages to legacy servers. Recheck when
+    // dispatched: the connection can close after the touch callback.
+    if (!IsMediaControlAvailable()) return;
     Schedule([this, action, index, position_ms]() {
-        if (protocol_) {
+        if (IsMediaControlAvailable()) {
             protocol_->SendMediaControl(action, index, position_ms);
         }
     });
