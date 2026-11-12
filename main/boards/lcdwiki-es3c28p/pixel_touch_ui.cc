@@ -401,6 +401,19 @@ void PixelTouchUI::BuildVoice() {
     RefreshVoice();
 }
 
+void PixelTouchUI::OnChatMessage(const char* role, const char* content) {
+    if (role == nullptr || content == nullptr || content[0] == '\0') return;
+    // The real recognized user transcript marks the LLM-response interval.
+    if (std::strcmp(role, "user") == 0) {
+        voice_waiting_response_ = true;
+    } else if (std::strcmp(role, "assistant") == 0) {
+        voice_waiting_response_ = false;
+    }
+    if (page_ == Page::Voice && !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
+        RefreshVoice();
+    }
+}
+
 void PixelTouchUI::RefreshVoice() {
     if (voice_title_ == nullptr || voice_primary_ == nullptr) return;
     const auto state = Application::GetInstance().GetDeviceState();
@@ -409,11 +422,12 @@ void PixelTouchUI::RefreshVoice() {
     const char* primary = "开始说话";
     bool enabled = true;
     if (state == kDeviceStateListening) {
-        title = "正在聆听…";
-        caption = "我在听，你想聊什么？";
-        primary = "正在聆听";
+        title = voice_waiting_response_ ? "正在思考…" : "正在聆听…";
+        caption = voice_waiting_response_ ? "正在理解你的问题" : "我在听，你想聊什么？";
+        primary = voice_waiting_response_ ? "处理中…" : "正在聆听";
         enabled = false;
     } else if (state == kDeviceStateSpeaking) {
+        voice_waiting_response_ = false;
         title = "天天正在回答";
         caption = "点击停止播报";
         primary = "停止播报";
