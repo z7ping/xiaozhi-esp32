@@ -132,9 +132,9 @@ void PixelRobotDisplay::SetupUI() {
             auto* self = static_cast<PixelRobotDisplay*>(lv_timer_get_user_data(timer));
             self->blinking_ = !self->blinking_;
             self->SetEyes(self->blinking_);
-            lv_timer_set_period(timer, self->blinking_ ? 130 : 3500);
+            lv_timer_set_period(timer, self->blinking_ ? 100 : 4900);
         },
-        3500, this);
+        4900, this);
     touch_ui_ = std::make_unique<PixelTouchUI>(lv_screen_active());
 
     // During streamed media the app is in 'speaking', not 'idle'.
