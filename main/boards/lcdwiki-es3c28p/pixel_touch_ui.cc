@@ -215,6 +215,10 @@ void PixelTouchUI::Navigate(Page page) {
     player_position_ = nullptr;
     player_seek_slider_ = nullptr;
     player_toggle_ = nullptr;
+    player_prev_button_ = nullptr;
+    player_next_button_ = nullptr;
+    player_stop_button_ = nullptr;
+    player_list_button_ = nullptr;
     playlist_panel_ = nullptr;
     playlist_page_label_ = nullptr;
     for (auto& button : playlist_buttons_) button = nullptr;
@@ -394,18 +398,19 @@ void PixelTouchUI::BuildPlayer() {
     lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
     lv_obj_add_event_cb(player_seek_slider_, OnMediaSeek, LV_EVENT_RELEASED, this);
 
-    Button(body_, "上一首", 8, 148, 98, 38, OnMediaPrev, this,
-           MATERIAL_SYMBOLS_SKIP_PREVIOUS);
+    player_prev_button_ = Button(body_, "上一首", 8, 148, 98, 38, OnMediaPrev, this,
+                                 MATERIAL_SYMBOLS_SKIP_PREVIOUS);
     player_toggle_ = Button(body_, "播放", 111, 148, 98, 38, OnMediaToggle, this,
                             MATERIAL_SYMBOLS_PLAY_ARROW);
-    Button(body_, "下一首", 214, 148, 98, 38, OnMediaNext, this,
-           MATERIAL_SYMBOLS_SKIP_NEXT);
+    player_next_button_ = Button(body_, "下一首", 214, 148, 98, 38, OnMediaNext, this,
+                                 MATERIAL_SYMBOLS_SKIP_NEXT);
     BuildBackButton();
     if (!child_mode_) {
-        Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this, MATERIAL_SYMBOLS_STOP);
+        player_stop_button_ = Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this,
+                                     MATERIAL_SYMBOLS_STOP);
     }
-    Button(body_, "列表", 214, 194, 98, 38, OnPlaylistOpen, this,
-           MATERIAL_SYMBOLS_MUSIC_NOTE);
+    player_list_button_ = Button(body_, "列表", 214, 194, 98, 38, OnPlaylistOpen, this,
+                                 MATERIAL_SYMBOLS_MUSIC_NOTE);
 
     playlist_panel_ = lv_obj_create(body_);
     lv_obj_set_pos(playlist_panel_, 10, 35);
@@ -485,6 +490,39 @@ void PixelTouchUI::UpdatePlaylist() {
 
 void PixelTouchUI::UpdatePlayer() {
     if (player_title_ == nullptr) return;
+    const bool supported = Application::GetInstance().IsMediaControlAvailable();
+    if (supported != media_available_) {
+        // Do not reuse playback/queue data across a reconnect or downgrade.
+        media_available_ = supported;
+        media_status_.clear();
+        media_title_.clear();
+        media_error_.clear();
+        media_position_ms_ = 0;
+        media_duration_ms_ = 0;
+        media_current_index_ = -1;
+        media_playlist_length_ = 0;
+        playlist_count_ = 0;
+        playlist_offset_ = 0;
+        if (playlist_panel_ != nullptr) {
+            lv_obj_add_flag(playlist_panel_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    for (auto* control : {player_prev_button_, player_toggle_, player_next_button_,
+                          player_stop_button_, player_list_button_}) {
+        if (control == nullptr) continue;
+        if (supported) lv_obj_remove_state(control, LV_STATE_DISABLED);
+        else lv_obj_add_state(control, LV_STATE_DISABLED);
+    }
+    if (!supported) {
+        SetIfChanged(player_title_, "请通过语音播放故事或儿歌");
+        SetIfChanged(player_status_, "服务端未声明触摸播放控制");
+        SetIfChanged(player_position_, "--:-- / --:--");
+        if (player_seek_slider_ != nullptr) {
+            lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
+            lv_slider_set_value(player_seek_slider_, 0, LV_ANIM_OFF);
+        }
+        return;
+    }
     SetIfChanged(player_title_, media_title_.empty() ? "暂无播放内容"
                                                      : media_title_.c_str());
     const char* status = "尚无播放数据";
@@ -750,9 +788,11 @@ void PixelTouchUI::Refresh() {
         return;
     }
     if (page_ == Page::Player) {
-        // Five-second state requests are tiny JSON messages over the existing
-        // control transport. Playback/audio buffers remain on the Go server.
-        Application::GetInstance().SendMediaCommand("get_state");
+        UpdatePlayer();  // Recheck support on reconnect or server downgrade.
+        // Only the new Go server explicitly negotiates this command.
+        if (Application::GetInstance().IsMediaControlAvailable()) {
+            Application::GetInstance().SendMediaCommand("get_state");
+        }
     } else if (page_ == Page::Calendar && calendar_details_popup_ != nullptr &&
                !lv_obj_has_flag(calendar_details_popup_, LV_OBJ_FLAG_HIDDEN)) {
         RefreshCalendar(); // Read the one-slot asynchronous date lookup result.
