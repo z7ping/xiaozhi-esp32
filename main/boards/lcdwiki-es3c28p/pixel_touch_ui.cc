@@ -20,6 +20,9 @@ LV_FONT_DECLARE(lv_font_impact_64);
 #include <string>
 #include <algorithm>
 #include <cstdint>
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+#include <esp_log.h>
+#endif
 
 namespace {
 constexpr uint32_t kBg = 0x071326;
@@ -287,7 +290,88 @@ void PixelTouchUI::Navigate(Page page) {
         Application::GetInstance().SendMediaCommand("get_state");
     }
     ApplyPalette();
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+    LogUiGeometry();
+#endif
 }
+
+
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+void PixelTouchUI::LogUiGeometry() const {
+    // LVGL's actual post-layout bounds, not guessed C++ source constants.
+    lv_obj_update_layout(body_);
+    const char* state = "home";
+    switch (page_) {
+        case Page::Home: state = "home"; break;
+        case Page::Voice:
+            state = voice_waiting_response_ ? "voice.thinking" : "voice.listening";
+            break;
+        case Page::Player:
+            state = player_song_mode_ ? "player.song.playing" :
+                    (media_status_ == "paused" ? "player.story.paused" :
+                                                  "player.story.playing");
+            break;
+        case Page::Calendar:
+            state = calendar_details_popup_ != nullptr &&
+                     !lv_obj_has_flag(calendar_details_popup_, LV_OBJ_FLAG_HIDDEN) ?
+                     "calendar.detail" : "calendar.default";
+            break;
+        case Page::Settings:
+            state = child_mode_ ? "settings.child-on" : "settings.child-off";
+            break;
+    }
+    auto log = [state](const char* key, lv_obj_t* obj) {
+        if (obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return;
+        lv_area_t a{};
+        lv_obj_get_coords(obj, &a);
+        ESP_LOGI("ES3C28P_UI",
+                 "state=%s anchor=%s x=%ld y=%ld w=%ld h=%ld",
+                 state, key, static_cast<long>(a.x1), static_cast<long>(a.y1),
+                 static_cast<long>(a.x2 - a.x1 + 1),
+                 static_cast<long>(a.y2 - a.y1 + 1));
+    };
+    log(".page.active", body_);
+    if (page_ == Page::Home) {
+        log(".small-date", home_day_label_);
+        log(".clock", time_label_);
+        log("home-lunar", lunar_label_);
+        log("@talk", robot_slot_);
+    } else if (page_ == Page::Voice) {
+        log(".header", lv_obj_get_child(body_, 0));
+        log("@voice-face", lv_obj_get_child(body_, 1));
+        log("voice-title", voice_title_);
+        log("voice-caption", voice_caption_);
+        log("voice-cancel", voice_stop_);
+        log("voice-send", voice_primary_);
+    } else if (page_ == Page::Player) {
+        log(".header", lv_obj_get_child(body_, 0));
+        log("track-title", player_title_);
+        log("play-status", player_status_);
+        log("progress", player_seek_slider_);
+        log("current-time", player_position_);
+        log("total-time", player_duration_);
+        log("@prev", player_prev_button_);
+        log("pause-button", player_toggle_);
+        log("@next", player_next_button_);
+        log("volume-popup", player_volume_popup_);
+        log("volume-slider", player_volume_slider_);
+    } else if (page_ == Page::Calendar) {
+        log(".header", lv_obj_get_child(body_, 0));
+        log("cal-month", calendar_month_label_);
+        log("cal-picked", calendar_selected_label_);
+        log("@cal-detail", calendar_selected_label_ ?
+                             lv_obj_get_parent(calendar_selected_label_) : nullptr);
+        log("cal-detail", calendar_details_popup_);
+        log("detail-date", calendar_date_label_);
+    } else if (page_ == Page::Settings) {
+        log(".header", lv_obj_get_child(body_, 0));
+        log("kid-toggle", child_mode_switch_);
+        log("brightness", brightness_slider_);
+        log("setting-volume", volume_slider_);
+        log("setting-foot", settings_foot_);
+    }
+}
+#endif
 
 void PixelTouchUI::RunQueuedNavigation(void* data) {
     auto* self = static_cast<PixelTouchUI*>(data);
@@ -1101,6 +1185,9 @@ void PixelTouchUI::OnVolumePopup(lv_event_t* event) {
         lv_obj_clear_flag(self->player_volume_popup_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_to_index(self->player_volume_popup_,
                              lv_obj_get_child_count(self->body_) - 1);
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+        self->LogUiGeometry();
+#endif
     } else {
         lv_obj_add_flag(self->player_volume_popup_, LV_OBJ_FLAG_HIDDEN);
     }
@@ -1197,6 +1284,9 @@ void PixelTouchUI::OnCalendarDetail(lv_event_t* event) {
         lv_obj_clear_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_to_index(self->calendar_details_popup_,
             lv_obj_get_child_count(self->body_) - 1);
+#if CONFIG_LCDWIKI_ES3C28P_RESOURCE_DIAGNOSTICS
+        self->LogUiGeometry();
+#endif
     }
 }
 void PixelTouchUI::OnCalendarClose(lv_event_t* event) {
