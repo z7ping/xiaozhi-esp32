@@ -196,6 +196,7 @@ void PixelTouchUI::Navigate(Page page) {
     DetachRobot();
     lv_obj_clean(body_);
     page_ = page;
+    home_day_label_ = nullptr;
     time_label_ = nullptr;
     date_label_ = nullptr;
     weather_label_ = nullptr;
@@ -277,7 +278,7 @@ void PixelTouchUI::BuildHome() {
     BuildHeader("TIAN TIAN / OS");
     Button(body_, "", 270, 1, 48, 30, OnSettings, this, MATERIAL_SYMBOLS_SETTINGS);
 
-    Label(body_, "TIAN TIAN", 12, 40, 165, 23, kAccent);
+    home_day_label_ = Label(body_, "-- / --- --", 12, 40, 176, 23, kMuted);
     time_label_ = Label(body_, "--:--", 12, 64, 178, 70);
 #if CONFIG_WEATHER_DASHBOARD
     lv_obj_set_style_text_font(time_label_, &lv_font_impact_64, 0);
@@ -586,6 +587,12 @@ void PixelTouchUI::RefreshHome() {
     localtime_r(&now, &local);
     char output[64];
     if (local.tm_year >= 125) {
+        static const char* en_weekday[] = {"SUN","MON","TUE","WED","THU","FRI","SAT"};
+        static const char* en_month[] = {"JAN","FEB","MAR","APR","MAY","JUN",
+                                         "JUL","AUG","SEP","OCT","NOV","DEC"};
+        std::snprintf(output, sizeof(output), "%s / %s %02d",
+                      en_weekday[local.tm_wday], en_month[local.tm_mon], local.tm_mday);
+        SetIfChanged(home_day_label_, output);
         std::snprintf(output, sizeof(output), "%02d:%02d", local.tm_hour, local.tm_min);
         SetIfChanged(time_label_, output);
         static const char* weekday[] = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
@@ -701,7 +708,7 @@ void PixelTouchUI::NavigateCalendarMonth(int delta) {
     int month = calendar_month_ + delta;
     if (month < 1) { month = 12; --year; }
     if (month > 12) { month = 1; ++year; }
-    if (year < 2000 || year > 2099) return;
+    if (year < 2025 || year > 2099) return;
     calendar_year_ = selected_year_ = year;
     calendar_month_ = selected_month_ = month;
     selected_day_ = std::min(selected_day_, DaysInMonth(year, month));
@@ -809,11 +816,18 @@ void PixelTouchUI::OnCalendarDetail(lv_event_t* event) {
     auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
 #if CONFIG_WEATHER_DASHBOARD
     if (!self->IsSelectedToday()) {
-        AlmanacService::GetInstance().RequestDate(
-            self->selected_year_, self->selected_month_, self->selected_day_);
+        if (!AlmanacService::GetInstance().RequestDate(
+                self->selected_year_, self->selected_month_, self->selected_day_)) {
+            SetIfChanged(self->calendar_detail_label_, "黄历服务不可用或日期不支持");
+        } else {
+            self->RefreshCalendar();
+        }
+    } else {
+        self->RefreshCalendar();
     }
-#endif
+#else
     self->RefreshCalendar();
+#endif
     if (self->calendar_details_popup_ != nullptr) {
         lv_obj_clear_flag(self->calendar_details_popup_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_to_index(self->calendar_details_popup_,
