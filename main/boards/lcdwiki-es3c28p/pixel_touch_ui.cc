@@ -170,6 +170,15 @@ void PixelTouchUI::Navigate(Page page) {
     Refresh();
 }
 
+void PixelTouchUI::QueueNavigate(Page page) {
+    queued_page_ = page;
+    // Do not delete the clicked LVGL object while its event is being dispatched.
+    lv_async_call([](void* data) {
+        auto* self = static_cast<PixelTouchUI*>(data);
+        self->Navigate(self->queued_page_);
+    }, this);
+}
+
 void PixelTouchUI::BuildHeader(const char* title) {
     auto* bar = lv_obj_create(body_);
     lv_obj_set_pos(bar, 0, 0);
@@ -326,16 +335,16 @@ void PixelTouchUI::UpdateSliderValues() {
 }
 
 void PixelTouchUI::OnSettings(lv_event_t* event) {
-    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->Navigate(Page::Settings);
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Settings);
 }
 void PixelTouchUI::OnHome(lv_event_t* event) {
-    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->Navigate(Page::Home);
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Home);
 }
 void PixelTouchUI::OnCalendar(lv_event_t* event) {
-    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->Navigate(Page::Calendar);
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Calendar);
 }
 void PixelTouchUI::OnPlayer(lv_event_t* event) {
-    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->Navigate(Page::Player);
+    static_cast<PixelTouchUI*>(lv_event_get_user_data(event))->QueueNavigate(Page::Player);
 }
 void PixelTouchUI::OnTalk(lv_event_t*) {
     Application::GetInstance().ToggleChatState();
