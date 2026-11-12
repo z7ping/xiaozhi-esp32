@@ -195,9 +195,9 @@ void PixelTouchUI::AttachRobot() {
         return;
     }
     lv_obj_set_parent(robot_area_, robot_slot_);
-    lv_obj_set_size(robot_area_, page_ == Page::Voice ? 98 : 104,
-                    page_ == Page::Voice ? 98 : 124);
-    lv_obj_set_pos(robot_area_, 0, 0);
+    // Robot content is 104x124 on both pages; offset it under the 98px voice viewport.
+    lv_obj_set_size(robot_area_, 104, 124);
+    lv_obj_set_pos(robot_area_, page_ == Page::Voice ? -3 : 0, 0);
 }
 
 void PixelTouchUI::DetachRobot() {
