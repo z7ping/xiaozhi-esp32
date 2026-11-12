@@ -98,7 +98,7 @@ PixelTouchUI::PixelTouchUI(lv_obj_t* screen) {
     refresh_timer_ = lv_timer_create([](lv_timer_t* timer) {
         auto* self = static_cast<PixelTouchUI*>(lv_timer_get_user_data(timer));
         self->Refresh();
-    }, 30000, this);
+    }, 5000, this);
     lv_timer_pause(refresh_timer_);
 }
 
@@ -168,6 +168,11 @@ void PixelTouchUI::Navigate(Page page) {
     volume_slider_ = nullptr;
     brightness_value_ = nullptr;
     volume_value_ = nullptr;
+    player_title_ = nullptr;
+    player_status_ = nullptr;
+    player_position_ = nullptr;
+    player_toggle_ = nullptr;
+    refresh_ticks_ = 0;
 
     switch (page) {
         case Page::Home:
@@ -184,7 +189,12 @@ void PixelTouchUI::Navigate(Page page) {
             BuildSettings();
             break;
     }
-    Refresh();
+    if (page == Page::Home) RefreshHome();
+    if (page == Page::Calendar) RefreshCalendar();
+    if (page == Page::Player) {
+        UpdatePlayer();
+        Application::GetInstance().SendMediaCommand("get_state");
+    }
 }
 
 void PixelTouchUI::QueueNavigate(Page page) {
@@ -241,10 +251,55 @@ void PixelTouchUI::BuildCalendar() {
 
 void PixelTouchUI::BuildPlayer() {
     BuildHeader("媒体播放器");
-    Label(body_, "播放状态尚未同步", 14, 62, 292, 34, kAccent);
-    Label(body_, "等待 Go 服务端的播放状态接口", 14, 106, 292, 54, kMuted);
-    // No fake controls: existing server-side playback remains unchanged.
+    player_title_ = Label(body_, "正在同步播放状态", 14, 45, 290, 30);
+    player_status_ = Label(body_, "连接服务端中", 14, 80, 290, 28, kAccent);
+    player_position_ = Label(body_, "00:00", 14, 112, 290, 26, kMuted);
+
+    Button(body_, "上一首", 8, 148, 98, 38, OnMediaPrev, this,
+           MATERIAL_SYMBOLS_SKIP_PREVIOUS);
+    player_toggle_ = Button(body_, "播放", 111, 148, 98, 38, OnMediaToggle, this,
+                            MATERIAL_SYMBOLS_PLAY_ARROW);
+    Button(body_, "下一首", 214, 148, 98, 38, OnMediaNext, this,
+           MATERIAL_SYMBOLS_SKIP_NEXT);
     BuildBackButton();
+    Button(body_, "停止", 111, 194, 98, 38, OnMediaStop, this, MATERIAL_SYMBOLS_STOP);
+}
+
+void PixelTouchUI::SetMediaState(const char* state, const char* title,
+                                  int64_t position_ms, int current_index,
+                                  int playlist_length, const char* error) {
+    media_status_ = state != nullptr ? state : "";
+    media_title_ = title != nullptr ? title : "";
+    media_error_ = error != nullptr ? error : "";
+    media_position_ms_ = position_ms >= 0 ? position_ms : 0;
+    media_current_index_ = current_index;
+    media_playlist_length_ = playlist_length;
+    if (page_ == Page::Player && !lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) {
+        UpdatePlayer();
+    }
+}
+
+void PixelTouchUI::UpdatePlayer() {
+    if (player_title_ == nullptr) return;
+    SetIfChanged(player_title_, media_title_.empty() ? "暂无播放内容"
+                                                     : media_title_.c_str());
+    const char* status = "尚无播放数据";
+    if (media_status_ == "playing") status = "正在播放";
+    else if (media_status_ == "paused") status = "已暂停";
+    else if (media_status_ == "stopped") status = "已停止";
+    else if (media_status_ == "idle") status = "等待播放";
+    else if (media_status_ == "error") status = "播放发生错误";
+    SetIfChanged(player_status_, media_error_.empty() ? status : media_error_.c_str());
+    const int64_t seconds = media_position_ms_ / 1000;
+    char position[48];
+    std::snprintf(position, sizeof(position), "进度 %02lld:%02lld",
+                  static_cast<long long>(seconds / 60),
+                  static_cast<long long>(seconds % 60));
+    SetIfChanged(player_position_, position);
+    if (player_toggle_ != nullptr) {
+        auto* label = lv_obj_get_child(player_toggle_, 0);
+        SetIfChanged(label, media_status_ == "playing" ? "暂停" : "播放");
+    }
 }
 
 void PixelTouchUI::BuildSettings() {
@@ -341,8 +396,15 @@ void PixelTouchUI::RefreshCalendar() {
 
 void PixelTouchUI::Refresh() {
     if (lv_obj_has_flag(root_, LV_OBJ_FLAG_HIDDEN)) return;
-    if (page_ == Page::Home) RefreshHome();
-    if (page_ == Page::Calendar) RefreshCalendar();
+    if (page_ == Page::Player) {
+        // Five-second state requests are tiny JSON messages over the existing
+        // control transport. Playback/audio buffers remain on the Go server.
+        Application::GetInstance().SendMediaCommand("get_state");
+    } else if (++refresh_ticks_ >= 6) {
+        refresh_ticks_ = 0;
+        if (page_ == Page::Home) RefreshHome();
+        if (page_ == Page::Calendar) RefreshCalendar();
+    }
 }
 
 void PixelTouchUI::UpdateSliderValues() {
@@ -387,4 +449,19 @@ void PixelTouchUI::OnSliderRelease(lv_event_t* event) {
             codec->SetOutputVolume(lv_slider_get_value(self->volume_slider_));
         }
     }
+}
+
+void PixelTouchUI::OnMediaPrev(lv_event_t*) {
+    Application::GetInstance().SendMediaCommand("prev");
+}
+void PixelTouchUI::OnMediaNext(lv_event_t*) {
+    Application::GetInstance().SendMediaCommand("next");
+}
+void PixelTouchUI::OnMediaStop(lv_event_t*) {
+    Application::GetInstance().SendMediaCommand("stop");
+}
+void PixelTouchUI::OnMediaToggle(lv_event_t* event) {
+    auto* self = static_cast<PixelTouchUI*>(lv_event_get_user_data(event));
+    Application::GetInstance().SendMediaCommand(
+        self->media_status_ == "playing" ? "pause" : "resume");
 }
