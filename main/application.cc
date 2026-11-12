@@ -1453,6 +1453,14 @@ void Application::SendMcpMessage(const std::string& payload) {
     });
 }
 
+void Application::SendMediaCommand(const std::string& action) {
+    Schedule([this, action]() {
+        if (protocol_) {
+            protocol_->SendMediaControl(action);
+        }
+    });
+}
+
 void Application::SetAecMode(AecMode mode) {
     aec_mode_ = mode;
     Schedule([this]() {
