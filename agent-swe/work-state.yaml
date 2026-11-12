@@ -2,63 +2,63 @@ schema_version: "0.2"
 status: active
 
 goal:
-  summary: "将 LCDWiki ES3C28P 320x240 横屏正式 UI 严格对齐已批准的交互原型 V1.1，保留旧分支实机调试成果与真实服务链路"
+  summary: "将 LCDWiki ES3C28P 正式 UI 严格对齐已批准的 V1.1 原型，不破坏原有实机调试成果和真实音频/媒体功能"
 
 phase:
-  type: implementation
-  summary: "V1.1 原型及计算布局契约已入库，原型门禁在 Chromium 本地验证通过；正式 LVGL 还原和运行态证据尚未完成"
+  type: verification
+  summary: "五页主要 LVGL 结构已经增量改造，自动化原型契约与串口几何采样工具具备；待 SDK 编译、完整坐标验收与实机验证"
 
 scope:
   include:
-    - "V1.1 首页、语音、播放器、万年历、家长设置五页视觉与交互"
-    - "从批准 HTML 提取 CSS 几何、字体、SVG、交互和状态契约"
-    - "在现有 LVGL/音频/天气/黄历/Go 媒体能力上增量实现"
-    - "分级验收：浏览器契约 -> LVGL 树/交互 -> ESP-IDF 编译 -> 真机资源/功能"
+    - "320x240 首页、语音、播放器、万年历、设置 V1.1 页面、状态与交互"
+    - "HTML 计算样式与 SVG/动画契约，LVGL 运行时几何取证"
+    - "保留真实天气、黄历、Jellyfin、旧服务端媒体能力协商"
   exclude:
-    - "更改其他板卡或旧的 feat/es3c28p-touch-ui 调试分支"
-    - "重做 Jellyfin 音频链路或服务端实现"
+    - "修改 main、其他板卡或原 feat/es3c28p-touch-ui 调试分支"
+    - "重做 Go 服务端、Jellyfin 音频数据链"
 
 constraints:
   required:
-    - "仅在 feat/es3c28p-interactive-ui-v1.1 开发；继承旧分支 e6dc7df 的触摸和播放修复"
-    - "V1.1 HTML 为唯一视觉基线，不得自行变更、重新设计或更新基线以消除失败"
-    - "复用现有 LVGL 9、Material Symbols、音频设备/协议、天气与黄历能力"
-    - "未通过实机验收不可宣称像素级 1:1，不能用模拟数据充当正式结果"
-    - "不等待 CI/Actions；资源超预算须提交真实证据"
+    - "仅在 feat/es3c28p-interactive-ui-v1.1 分支工作"
+    - "prototypes/esp32-ui/index.html 为唯一批准设计基线，不得自动改动"
+    - "不使用模拟服务端状态、假 ASR 文本和固定播放内容"
+    - "失败门禁保留失败；无硬件或渲染证据不宣布 1:1"
+    - "优先复用原 LVGL、Board、Settings、Application 与服务能力；不等待 CI"
   forbidden:
-    - "直接修改 main、旧调试分支或未经授权合并/发布"
-    - "偷偷删除已有的播放列表、Seek、媒体降级等已实现能力"
+    - "修改原调试分支或未经用户授权合并、发布"
+    - "删除已有队列、Seek、停止和旧服务端兼容能力以适配新原型"
   frozen:
-    - "prototypes/esp32-ui/index.html 当前源文件内容"
-    - "Go 服务端仍为 Jellyfin 媒体状态唯一事实源"
+    - "prototypes/esp32-ui/index.html"
+    - "Go 服务端为媒体状态唯一事实源"
 
 acceptance:
-  - "原型布局契约校验通过：13 状态、12 SVG 定义、19 类交互动作（含动态日历选日）"
-  - "五页 LVGL 实现覆盖可用功能，按浏览器计算坐标自动对齐 2px 容差"
-  - "正式运行态文字、图标、动画、触摸手势和空/错/禁用等状态符合设计"
-  - "已有设备语音、天气、万年历、Jellyfin、媒体协商及设置功能无回退"
-  - "ESP-IDF 编译成功及实机 RAM/PSRAM、触摸/音频并发验收"
+  - "320x240、13 状态、12 SVG、19 交互动作可重复从批准 HTML 提取"
+  - "五页和对应交互以 LVGL 正式运行态提供实际证据，关键布局误差不超过 2px"
+  - "图标、字体、动画、空态/错误态完成原型适配并留存明确差异"
+  - "ESP-IDF 编译、串口诊断、设备触摸、音频及内存回归通过"
+  - "旧调试分支保持不变，主分支不受影响"
 
 progress:
   current:
-    - "原始 V1.1 HTML 已存 prototypes/esp32-ui/index.html"
-    - "Playwright 计算样式提取器 scripts/extract_es3c28p_ui.py 已创建"
-    - "冻结了 prototypes/esp32-ui/ui-baseline.json：320x240、7 个关键稳定状态锚点"
-    - "scripts/check_es3c28p_ui.py 本地原型侧 PASS；--strict 需 LVGL 真正运行态树，不提供则 FAIL"
-    - "首页按 V1.1 坐标调整入口、时钟、天气/农历与机器人共享槽位，字体/形象仍为 Partial"
-    - "新增 BuildVoice 独立语音 UI，PixelRobotDisplay 在实际 connecting/listening/speaking 状态进入；无模拟语音结果"
-    - "正式像素渲染与真机暂无证据；播放器、日历、设置尚未完成 V1.1 还原"
+    - "原始 V1.1 HTML 完整纳入 prototypes/esp32-ui/index.html"
+    - "本地 Chromium 原型合同检查 PASS，当前无 LVGL 运行时通过证据"
+    - "首页采用圆形共享机器人，并展示实际 Wi-Fi/电量、时间、天气和农历"
+    - "语音页复用同一机器人，通过真实设备状态及用户识别文本更新 Listening/Thinking/Speaking"
+    - "播放器按 V1.1 改布局，保留真实队列、Seek、长按停止、旧服务端禁用逻辑"
+    - "万年历和家长设置按 V1.1 重新布局；真实日期、亮度、音量和 NVS 保留"
+    - "诊断版增加 ES3C28P_UI 实际坐标输出及 parse_es3c28p_ui_log.py 转换器"
+    - "已做源文件声明/定义、括号结构复核；尚未完成 ESP-IDF 编译、实机验证及严格运行时门禁"
   next:
-    - "先实现统一 Token / SVG 字形资源映射和首页、独立语音页面"
-    - "复用当前播放器/万年历/设置实现并逐项对齐 V1.1"
-    - "为 LVGL 增加运行时几何树导出并将状态转移接入真业务"
-    - "执行严格门禁、固件构建以及本地烧录真机统一回归"
+    - "优先查验 LVGL 9 编译兼容性和构建，修正静态与运行错误"
+    - "补齐运行时 key 映射、关键颜色和字体/图标以及机器人动效"
+    - "采集真机串口，执行 UI 严格门禁并逐项收敛差异"
+    - "验证实际长按/滑动、语音/媒体并发与设备 RAM/PSRAM"
 
 decisions:
-  - "不用真实 LCD 自动截图作为先决条件；浏览器契约与 LVGL 运行时树比较由工程自行处理"
-  - "原型所有静态模拟数据必须替换为现有服务真实状态"
-  - "旧分支保留用户真机调试成果，新分支独立推进"
-  - "统一按已有 High Fidelity UI Adaptation SOP 记录 UI Parity Matrix"
+  - "原型 HTML 不修改，动态数据都来自正式设备或服务"
+  - "无法自动截图时保留运行时实际坐标与独立真机视觉验收，不伪造像素分数"
+  - "复用单一机器人，按原型布局而非继续沿用旧像素风主页"
+  - "旧调试分支保留，所有新 UI 调整改在独立新分支"
 
 repository:
   provider: github
