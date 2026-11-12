@@ -19,6 +19,7 @@ public:
     bool SetEmotion(const char* emotion) override;
     void SetMediaState(const char* state, const char* title, int64_t position_ms,
                        int current_index, int playlist_length, const char* error) override;
+    void SetMediaPlaylist(int offset, const std::vector<std::string>& titles) override;
 #if CONFIG_WEATHER_DASHBOARD
     void ShowDashboard() override;
     void HideDashboard() override;
