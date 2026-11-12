@@ -30,7 +30,7 @@ private:
     void BuildPlayer();
     void UpdatePlayer();
     void BuildSettings();
-    void BuildHeader(const char* title);
+    void BuildHeader(const char* title, bool back = false);
     void BuildBackButton();
     void RefreshHome();
     void RefreshCalendar();
