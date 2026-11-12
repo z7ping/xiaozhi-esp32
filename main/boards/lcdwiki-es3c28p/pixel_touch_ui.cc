@@ -504,7 +504,12 @@ void PixelTouchUI::UpdatePlayer() {
                       static_cast<long long>(total / 60),
                       static_cast<long long>(total % 60));
         if (player_seek_slider_ != nullptr) {
-            lv_obj_remove_state(player_seek_slider_, LV_STATE_DISABLED);
+            if (media_duration_ms_ <= 2LL * 60 * 60 * 1000) {
+                lv_obj_remove_state(player_seek_slider_, LV_STATE_DISABLED);
+            } else {
+                // Server bounds generic decoded-frame Seek to two hours.
+                lv_obj_add_state(player_seek_slider_, LV_STATE_DISABLED);
+            }
             if (!lv_obj_has_state(player_seek_slider_, LV_STATE_PRESSED)) {
                 int ratio = static_cast<int>(std::min<int64_t>(
                     1000, media_position_ms_ * 1000 / media_duration_ms_));
