@@ -106,6 +106,8 @@ void Protocol::SendMcpMessage(const std::string& payload) {
 }
 
 void Protocol::SendMediaControl(const std::string& action, int index, int64_t position_ms) {
+    // Defence in depth for callers outside the touch UI.
+    if (!SupportsMediaControl()) return;
     cJSON* root = cJSON_CreateObject();
     if (root == nullptr) return;
     cJSON_AddStringToObject(root, "type", "media");
@@ -121,6 +123,16 @@ void Protocol::SendMediaControl(const std::string& action, int index, int64_t po
         cJSON_free(encoded);
     }
     cJSON_Delete(root);
+}
+
+void Protocol::ParseServerCapabilities(const cJSON* hello) {
+    auto* features = cJSON_GetObjectItemCaseSensitive(hello, "features");
+    auto* media = cJSON_IsObject(features)
+        ? cJSON_GetObjectItemCaseSensitive(features, "media_control")
+        : nullptr;
+    const bool supported = cJSON_IsTrue(media);
+    media_control_supported_.store(supported);
+    ESP_LOGI(TAG, "Server media control: %s", supported ? "supported" : "unavailable");
 }
 
 bool Protocol::IsTimeout() const {
