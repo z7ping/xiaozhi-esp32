@@ -195,7 +195,7 @@ void PixelTouchUI::AttachRobot() {
         return;
     }
     lv_obj_set_parent(robot_area_, robot_slot_);
-    lv_obj_set_size(robot_area_, 116, 100);
+    lv_obj_set_size(robot_area_, 104, 100);
     lv_obj_set_pos(robot_area_, 0, 0);
 }
 
@@ -311,27 +311,50 @@ void PixelTouchUI::BuildBackButton() {
 }
 
 void PixelTouchUI::BuildHome() {
-    BuildHeader("TIAN TIAN / OS");
-    Button(body_, "", 270, 1, 48, 30, OnSettings, this, MATERIAL_SYMBOLS_SETTINGS);
+    // V1.1 browser baseline: no legacy 32px banner; compact date/status row.
+    home_day_label_ = Label(body_, "--月--日 · 星期--", 14, 10, 172, 21, kMuted);
+    auto* settings = Button(body_, "", 279, 6, 28, 28, OnSettings, this,
+                            MATERIAL_SYMBOLS_SETTINGS);
+    lv_obj_set_style_bg_opa(settings, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(settings, 0, 0);
 
-    home_day_label_ = Label(body_, "-- / --- --", 12, 40, 176, 23, kMuted);
-    time_label_ = Label(body_, "--:--", 12, 64, 178, 70);
+    // The previously validated robot object is reused, never duplicated.
+    // Its sprite is still awaiting V1.1 round-face visual replacement.
+    robot_slot_ = lv_obj_create(body_);
+    lv_obj_remove_style_all(robot_slot_);
+    lv_obj_set_pos(robot_slot_, 200, 51);
+    lv_obj_set_size(robot_slot_, 104, 124);
+    lv_obj_add_flag(robot_slot_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(robot_slot_, OnTalk, LV_EVENT_CLICKED, this);
+
+    time_label_ = Label(body_, "--:--", 17, 52, 192, 62);
 #if CONFIG_WEATHER_DASHBOARD
     lv_obj_set_style_text_font(time_label_, &lv_font_impact_64, 0);
 #endif
-    date_label_ = Label(body_, "", 12, 135, 175, 25, kMuted);
-    weather_label_ = Label(body_, "天气未就绪", 12, 161, 175, 26, kAccent);
-    lunar_label_ = Label(body_, "", 12, 183, 174, 18, kMuted);
+    weather_label_ = Label(body_, "天气暂无数据", 17, 115, 192, 22, kAccent);
+    lunar_label_ = Label(body_, "农历暂无数据", 17, 146, 192, 18, kMuted);
 
-    robot_slot_ = Button(body_, "", 194, 40, 116, 104, OnTalk, this);
-    Label(body_, "点我说话", 205, 153, 102, 27, kAccent);
+    auto* indicator = lv_obj_create(body_);
+    lv_obj_remove_style_all(indicator);
+    lv_obj_set_pos(indicator, 18, 165);
+    lv_obj_set_size(indicator, 7, 7);
+    lv_obj_set_style_radius(indicator, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(indicator, lv_color_hex(0x70dfcb), 0);
+    lv_obj_set_style_bg_opa(indicator, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(indicator, LV_OBJ_FLAG_CLICKABLE);
+    Label(body_, "你好，我是天天", 31, 160, 145, 18, kMuted);
 
-    Button(body_, "听故事", 8, 199, 98, 38, OnPlayer, this,
-           MATERIAL_SYMBOLS_HEADPHONES);
-    Button(body_, "听儿歌", 111, 199, 98, 38, OnPlayer, this,
-           MATERIAL_SYMBOLS_MUSIC_NOTE);
-    Button(body_, "万年历", 214, 199, 98, 38, OnCalendar, this,
-           MATERIAL_SYMBOLS_CALENDAR_MONTH);
+    auto* story = Button(body_, "听故事", 13, 185, 93, 43, OnPlayer, this,
+                         MATERIAL_SYMBOLS_HEADPHONES);
+    auto* song = Button(body_, "听儿歌", 114, 185, 93, 43, OnPlayer, this,
+                        MATERIAL_SYMBOLS_MUSIC_NOTE);
+    auto* calendar = Button(body_, "万年历", 214, 185, 93, 43, OnCalendar, this,
+                            MATERIAL_SYMBOLS_CALENDAR_MONTH);
+    for (auto* action : {story, song, calendar}) {
+        lv_obj_set_style_radius(action, 11, 0);
+        lv_obj_set_style_bg_color(action, lv_color_hex(0x20354e), 0);
+        lv_obj_set_style_border_color(action, lv_color_hex(0x2d4660), 0);
+    }
 }
 
 void PixelTouchUI::BuildVoice() {
@@ -760,11 +783,10 @@ void PixelTouchUI::RefreshHome() {
     localtime_r(&now, &local);
     char output[64];
     if (local.tm_year >= 125) {
-        static const char* en_weekday[] = {"SUN","MON","TUE","WED","THU","FRI","SAT"};
-        static const char* en_month[] = {"JAN","FEB","MAR","APR","MAY","JUN",
-                                         "JUL","AUG","SEP","OCT","NOV","DEC"};
-        std::snprintf(output, sizeof(output), "%s / %s %02d",
-                      en_weekday[local.tm_wday], en_month[local.tm_mon], local.tm_mday);
+        static const char* weekday[] = {"星期日", "星期一", "星期二", "星期三",
+                                        "星期四", "星期五", "星期六"};
+        std::snprintf(output, sizeof(output), "%d月%d日 · %s",
+                      local.tm_mon + 1, local.tm_mday, weekday[local.tm_wday]);
         SetIfChanged(home_day_label_, output);
         std::snprintf(output, sizeof(output), "%02d:%02d", local.tm_hour, local.tm_min);
         SetIfChanged(time_label_, output);
